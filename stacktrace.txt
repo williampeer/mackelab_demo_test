@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "(...)/fork/fsGIF/fsGIF/demo_framework_usage.py", line 47, in <module>
+    model=spiking_model)
+  File "(...)/fork/fsGIF/fsGIF/main.py", line 785, in gradient_descent
+    sgd = sinn.optimize.gradient_descent.SGD(
+AttributeError: module 'sinn.optimize.gradient_descent' has no attribute 'SGD'
