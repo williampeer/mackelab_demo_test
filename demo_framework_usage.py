@@ -35,14 +35,14 @@ state_hist.set(source=state_labels_1d)
 # state_hist = Series(t0=param_t0, tn=param_tn, dt=param_dt, shape=(17,))
 # state_hist.set(source=states_17d)
 
-# TODO: Fix init., then call fit
 spiking_model = init_spiking_model(spike_history=spiketrain, input_history=state_hist)
 # init_spiking_model(spike_history=None, input_history=state_hist, datalen=100)
 
 use_theano = shim.config.use_theano
 shim.load(load_theano=True)
 
+# TODO: Fix GD function
 gradient_descent(input_filename=None, output_filename="test_output.test",
                  batch_size=100,
                  model=spiking_model)
-# fit(output="test_filename", batch=100)
+
