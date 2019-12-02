@@ -1,0 +1,8 @@
+parameters
+odictliteral
+pyyaml
+
+-e git+ssh://git@github.com/mackelab/theano_shim.git@f5d20a4f6b2ad8d882b484a898b8ea47a5ff990f#egg=theano_shim
+-e git+ssh://git@github.com/mackelab/mackelab-toolbox.git@55922163b06e41ae14f25c36d394aa4f86f8e19f#egg=mackelab-toolbox
+-e git+ssh://git@github.com/mackelab/sinn.git@ac54dbdeb00c5299478b5fa40e73f66e905207b6#egg=sinn
+-e git+ssh://git@github.com/mackelab/fsGIF.git@ba87815b8b89985c0ed7ed0674c90e0f55c41573#egg=finite-size-gif
