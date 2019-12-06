@@ -3,7 +3,7 @@ import theano_shim as shim
 from parameters import ParameterSet
 
 from sinn.histories import Spiketrain, Series
-from sinn.popterm import PopTermMeso
+from sinn.popterm import PopTermMeso, PopTermMicro
 
 #from fsGIF.main import init_spiking_model
 from fsGIF.fsgif_model import GIF_spiking
@@ -27,8 +27,8 @@ print('states_binary_2d.shape:', states_binary_2d.shape)
 
 param_dt = 4.
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
-spiketrain = Series(name='s', time_array=tarr, shape=(sum(pop_sizes),))
-spiketrain.set(source=spike_trains)
+spike_series = Series(name='s', time_array=tarr, shape=(sum(pop_sizes),))
+spike_series.set(source=spike_trains)
 # spiketrain.set(source=np.hstack((states_binary_2d, spike_trains)))
 
 # state_hist = Series(t0=param_t0, tn=param_tn, dt=param_dt, shape=(3,))
@@ -41,14 +41,14 @@ state_hist.set(source=state_labels_1d)
 
 model_params = get_model_params(ParameterSet("spike_model_params.ntparameterset"), "GIF_spiking")
 # HACK: Casting to PopTerm should be automatic
-model_params = model_params._replace(
-        τ_θ=PopTermMeso(pop_sizes, model_params.τ_θ, ('Meso',)),
-        τ_m=PopTermMeso(pop_sizes, model_params.τ_m, ('Meso',)))
+# model_params = model_params._replace(
+#         τ_θ=PopTermMeso(pop_sizes, model_params.τ_θ, ('Meso',)),
+#         τ_m=PopTermMeso(pop_sizes, model_params.τ_m, ('Meso',)))
 
 spiking_model = GIF_spiking(model_params,
-                            spiketrain, state_hist,
+                            spike_series, state_hist,
                             initializer='silent',
-                            set_weights=True)
+                            set_weights=True, pop_sizes=pop_sizes)
 
 
 print("loglikelihood")
@@ -65,8 +65,8 @@ print(spiking_model.loglikelihood(160., 400.))  # Float argument => Interpreted 
 import sinn.optimize.gradient_descent as gd
 
 # First create symbolic variables which are used as inputs in GD function
-t = shim.symbolic.scalar('tidx', dtype=spiketrain.tidx_dtype)
-batch_size_var = shim.symbolic('batch_size', dtype=spiketrain.tidx_dtype)
+t = shim.symbolic.scalar('tidx', dtype=spike_series.tidx_dtype)
+batch_size_var = shim.symbolic('batch_size', dtype=spike_series.tidx_dtype)
 batch_size     = 100
     # Note: instead of `spiketrain`, you can also use `spiking_model.s`
     # It's a bit dumb that we have to specify both a symbolic variable
@@ -90,10 +90,10 @@ logL, updates = spiking_model.loglikelihood(t, batch_size)
 # console or notebook !
 # Also: I'm basically picking numbers at random here; you'll have to figure out what makes
 # sense for your data.
-start = 12.
-datalen = tarr[-1] - burnin
 # We also need to specify the burnin before each batch
 burnin = 4.
+start = 12.
+datalen = tarr[-1] - burnin
 # Values of start and burnin mostly depend on how quickly the model's internal state
 # converges to something sensible.
 # For the mesoscopic model this is quite long, but for the spiking model it should be short.
