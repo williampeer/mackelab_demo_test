@@ -7,7 +7,7 @@ from sinn.popterm import PopTermMeso
 
 #from fsGIF.main import init_spiking_model
 from fsGIF.core import get_model_params
-from mesogif_model import GIF
+from mesogif_model_series import GIF
 
 # Use load_theano=False to make debugging easier
 shim.load(load_theano=True)
@@ -32,6 +32,7 @@ print('states_binary_2d.shape:', states_binary_2d.shape)
 param_dt = 4.
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
+# spiketrain = Series(name='s', time_array=tarr, shape=(sum(pop_sizes),))
 spiketrain.set(source=spike_trains)
 # spiketrain.set(source=np.hstack((states_binary_2d, spike_trains)))
 
@@ -57,8 +58,10 @@ spiking_model = GIF(model_params,
 
 
 print("loglikelihood")
-print(spiking_model.loglikelihood(40, 100))     # Int argument => Interpreted as time index
-print(spiking_model.loglikelihood(160., 400.))  # Float argument => Interpreted as time in seconds
+# Integrate the model forward to the time point with index 40
+spiking_model.advance(40)
+print(spiking_model.logp(40, 100))     # Int argument => Interpreted as time index
+print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,
                  #model=spiking_model)

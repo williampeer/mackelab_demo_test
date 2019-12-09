@@ -325,7 +325,7 @@ class GIF(models.Model):
         # TODO: include spikes in model state, so we don't need this custom 'Stateplus'
         Stateplus = namedtuple('Stateplus', self.State._fields + ('s',))
         state = Stateplus(
-            u = self.params.u_rest.expand.values,  # CHECK
+            u = self.params.u_rest.expand.values,
             t_hat = shim.ones(self.t_hat.shape) * self.memory_time,
             s = np.zeros((self.s.t0idx, self.s.shape[0]))
             )
@@ -339,7 +339,7 @@ class GIF(models.Model):
         # given by Astar; this means ISI statistics will be off as
         # we ignore refractory effects, but the overall rate will be
         # correct.
-        p = self.s.PopTerm(Astar).expand.values * self.dt  # CHECK
+        p = self.s.PopTerm(Astar).expand.values * self.dt
         nbins = self.s.t0idx
         nneurons = self.s.shape[0]
         s = np.random.binomial(1, p, (nbins, nneurons))
@@ -352,8 +352,8 @@ class GIF(models.Model):
         τmT = self.params.τ_m.flatten()[:, np.newaxis]
         η1 = τmT * self.params.p * self.params.N * self.params.w
             # As in mesoGIF.get_η_csts
-        u = np.where(t_hat <= self.params.t_ref.expand.values,  # CHECK
-                     self.params.u_r.expand.values,  # CHECK
+        u = np.where(t_hat <= self.params.t_ref.expand.values,
+                     self.params.u_r.expand.values,
                      ((1 - np.exp(-t_hat/self.params.τ_m)) * self.s.PopTerm( (self.params.u_rest + η1.dot(Astar)) )
                        + self.params.u_r * np.exp(-t_hat/self.params.τ_m)).expand.values
                      )
@@ -416,22 +416,6 @@ class GIF(models.Model):
                                        for i in range(Npops) ] )
 
         elif param.ndim == 2:
-            # i, j = 0, 0
-            # A = [ param[i, j]* np.ones((N[i], N[j]))
-            #                           for j in range(Npops) ]
-            # B = shim.concatenate( [ param[i, j]* np.ones((N[i], N[j]))
-            #                           for j in range(Npops) ],
-            #                         axis = 1 )
-            # C = [ shim.concatenate( [ param[i, j]* np.ones((N[i], N[j]))
-            #                           for j in range(Npops) ],
-            #                         axis = 1 )
-            #       for i in range(Npops) ]
-            # D = shim.concatenate(
-            #     [ shim.concatenate( [ param[i, j]* np.ones((N[i], N[j]))
-            #                           for j in range(Npops) ],
-            #                         axis = 1 )
-            #       for i in range(Npops) ],
-            #     axis = 0 )
             return shim.concatenate(
                 [ shim.concatenate( [ param[i, j]* np.ones((N[i], N[j]))
                                       for j in range(Npops) ],
@@ -542,7 +526,6 @@ class GIF(models.Model):
         return self.params.c * shim.exp(u/self.params.Δu.flatten())
 
 
-    # CHECK
     def RI_syn_fn(self, t):
         """Incoming synaptic current times membrane resistance. Eq. (20)."""
         t_s = self.RI_syn.get_t_for(t, self.s)
@@ -572,13 +555,12 @@ class GIF(models.Model):
         # 'm1' stands for 'minus 1', so it's the previous time bin
         red_factor = shim.exp(-self.u.dt/self.params.τ_m)
         return shim.switch( shim.ge(self.t_hat[t_that], self.params.t_ref.expand.values),
-                            self.u[tidx_u_m1] * red_factor  # CHECK
+                            self.u[tidx_u_m1] * red_factor
                             + ( (self.params.u_rest + self.params.R * self.I_ext[t_Iext])
-                                + self.RI_syn[t_RIsyn] ) # CHECK
-                              * (1 - red_factor), # CHECK
+                                + self.RI_syn[t_RIsyn] )
+                              * (1 - red_factor),
                             self.params.u_r.expand.values )
 
-    # CHECK
     def varθ_fn(self, t):
         """Dynamic threshold. Eq. (22)."""
         t_s = self.RI_syn.get_t_for(t, self.s)
@@ -588,7 +570,6 @@ class GIF(models.Model):
             # optimization. (see fixme comments in histories.spiketrain._convolve_single_t
             # and kernels.ExpKernel._convolve_single_t)
 
-    # CHECK
     def λ_fn(self, t):
         """Hazard rate. Eq. (23)."""
         # TODO: Use self.f here (requires overloading of ops to remove pop_rmul & co.)
@@ -1571,16 +1552,9 @@ class mesoGIF(models.Model):
     def loglikelihood(self, start, batch_size, data=None, avg=False,
                       flags=()):
         """
-        Returns
-        -------
-        log likelihood: symbolic scalar
-            Symbolic expression for the likelihood
-        state variable updates: list
-            List of symbolic expressions, one per state variable.
-            Each expression is a symbolic array of length `batch_size`, giving
-            for each variable all the time slices between `start` and `start+batch_size`.
-        symbolic update dictionary: dict
-            Update dictionary returned by the internal call to `scan()`.
+        Parameters
+        ----------
+        ...
         avg: bool
             True: Return the average log likelihood per time point in the batch.
             False (default): Return the loglikelihood of the batch.
@@ -1597,7 +1571,17 @@ class mesoGIF(models.Model):
             - 'optimize' (default) | 'mirror theano': Allow Numpy optimizations
               that break the mirroring of Numpy and Theano code.
             NOTE: At present flags only affect the output when not computing
-            with Theano.
+
+        Returns
+        -------
+        log likelihood: symbolic scalar
+            Symbolic expression for the likelihood
+        state variable updates: list
+            List of symbolic expressions, one per state variable.
+            Each expression is a symbolic array of length `batch_size`, giving
+            for each variable all the time slices between `start` and `start+batch_size`.
+        symbolic update dictionary: dict
+            Update dictionary returned by the internal call to `scan()`.
 
         TODO: I'm not sure the state variable updates are useful; if really needed,
               that information should be in the update dictionary.
