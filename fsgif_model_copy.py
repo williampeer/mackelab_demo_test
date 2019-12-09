@@ -210,14 +210,14 @@ class GIF_spiking(models.Model):
 
         # Set the connection weights
         if isinstance(set_weights, np.ndarray):
-            self.s.set_connectivity(set_weights)
+            self.set_connectivity(w=set_weights, pop_slices=pop_sizes)
         elif set_weights:
             # TODO: If parameters were less hacky, w would already be properly
             #       cast as an array
             # w = (self.s.PopTerm(self.params.w) * self.params.Γ).expand.values
             w = (self.params.w * self.params.Γ).expand.values
             # w includes both w and Γ from Eq. 20
-            # self.set_connectivity(w)
+            self.set_connectivity(w=w, pop_slices=pop_sizes)
 
         # Model variables
         self.RI_syn = Series(self.s, 'RI_syn',
@@ -341,7 +341,8 @@ class GIF_spiking(models.Model):
             init_state = self.get_stationary_state(init_A)
 
         elif initializer == 'silent':
-            init_A = np.zeros((len(self.s.pop_slices),))
+            # init_A = np.zeros((len(self.s.pop_slices),))
+            init_A = np.zeros((len(self.pop_sizes),))
             init_state = self.get_silent_latent_state()
         else:
             raise ValueError("Initializer string must be one of 'stationary', 'silent'")
@@ -672,6 +673,7 @@ class GIF_spiking(models.Model):
         # If the last bin was a spike, set the time to dt (time bin length)
         # Otherwise, add dt to the time
         return shim.switch( (self.s[s_tidx_m1] == 0)[cond_tslice],
+        # return shim.switch( (self.s[s_tidx_m1] < 1)[cond_tslice],
                             self.t_hat[t_tidx_m1] + self.t_hat.dt,
                             self.t_hat.dt )
 
