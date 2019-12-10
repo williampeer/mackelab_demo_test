@@ -1,5 +1,6 @@
 *.cache*
 *.compilecache*
+compilecache.sinn*
 
 .idea/*
 src/*

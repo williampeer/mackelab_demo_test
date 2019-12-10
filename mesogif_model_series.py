@@ -145,10 +145,9 @@ class GIF(models.Model):
                                    ) )
         # NOTE: `Γ` is typically obtained by calling `make_connectivity` with `N` and `p`.
     Parameters = sinn.define_parameters(Parameter_info)
-    State = namedtuple('State', ['u', 't_hat'])
+    State = namedtuple('State', ['u', 't_hat', 's'])
 
     default_initializer = 'stationary'
-
 
     def __init__(self, params, spike_history, input_history,
                  initializer=None, set_weights=True, random_stream=None, memory_time=None):
@@ -188,6 +187,7 @@ class GIF(models.Model):
         assert(N.ndim == 1)
         self.Npops = len(N)
 
+        self.original_params = self.params  # Store unexpanded params
         self.params = self.params._replace(
             **{name: self.expand_param(getattr(self.params, name), N)
             for name in params._fields
@@ -315,9 +315,7 @@ class GIF(models.Model):
         #self.s._data.set_value(data, borrow=True)
 
     def get_silent_latent_state(self):
-        # TODO: include spikes in model state, so we don't need this custom 'Stateplus'
-        Stateplus = namedtuple('Stateplus', self.State._fields + ('s',))
-        state = Stateplus(
+        state = self.State(
             u = self.params.u_rest,
             t_hat = shim.ones(self.t_hat.shape) * self.memory_time,
             s = np.zeros((self.s.t0idx, self.s.shape[0]))
@@ -498,9 +496,9 @@ class GIF(models.Model):
     def advance(self, stop):
 
         if stop == 'end':
-            stopidx = self.tnidx
+            stoptidx = self.tnidx
         else:
-            stopidx = self.get_t_idx(stop)
+            stoptidx = self.get_t_idx(stop)
 
         # Make sure we don't go beyond given data
         for h in self.history_set:
@@ -509,29 +507,36 @@ class GIF(models.Model):
                 continue
             if h.locked:
                 tn = h.get_time(h._original_tidx.get_value())
-                if tn < self._refhist.get_time(stopidx):
+                if tn < self._refhist.get_time(stoptidx):
                     logger.warning("Locked history '{}' is only provided "
                                    "up to t={}. Output will be truncated."
                                    .format(h.name, tn))
-                    stopidx = self.nbar.get_t_idx(tn)
+                    stoptidx = self.nbar.get_t_idx(tn)
 
         if not shim.config.use_theano:
-            self._refhist.compute_up_to(stopidx - self.t0idx + self._refhist.t0idx)
+            self._refhist[stoptidx - self.t0idx + self._refhist.t0idx]
+            # We want to compute the whole model up to stoptidx, not just what is required for refhist
             for hist in self.statehists:
-                hist.compute_up_to(stopidx - self.t0idx + hist.t0idx)
+                hist.compute_up_to(stoptidx - self.t0idx + hist.t0idx)
 
         else:
-            curtidx = min( hist._original_tidx.get_value() - hist.t0idx + self.t0idx
+            if not shim.graph.is_computable([hist._cur_tidx
+                                       for hist in self.statehists]):
+                raise TypeError("Advancing models is only implemented for "
+                                "histories with a computable current time "
+                                "index (i.e. the value of `hist._cur_tidx` "
+                                "must only depend on symbolic constants and "
+                                "shared vars).")
+            curtidx = min( shim.graph.eval(hist._cur_tidx, max_cost=50)
+                           - hist.t0idx + self.t0idx
                            for hist in self.statehists )
             assert(curtidx >= -1)
 
-            if curtidx+1 < stopidx:
-                self._advance(stopidx)
-                for hist in self.statehists:
-                    hist.theano_reset()
-
-    # def _advance(stopidx):
-    #     raise NotImplementedError
+            if curtidx < stoptidx:
+                self._advance(curtidx, stoptidx+1)
+                # _advance applies the updates, so should get rid of them
+                self.theano_reset()
+    integrate = advance
 
     def f(self, u):
         """Link function. Maps difference between membrane potential & threshold
@@ -541,14 +546,8 @@ class GIF(models.Model):
 
     def RI_syn_fn(self, t):
         """Incoming synaptic current times membrane resistance. Eq. (20)."""
-        t_s = self.RI_syn.get_t_for(t, self.s)
-        return ( self.params.τ_m * self.s.convolve(self.ε, t_s) )
-            # s includes the connection weights w, and convolution also includes
-            # the sums over j and β in Eq. 20.
-            # Need to fix spiketrain convolution before we can use the exponential
-            # optimization. (see fixme comments in histories.spiketrain._convolve_single_t
-            # and kernels.ExpKernel._convolve_single_t). Weights will then no longer
-            # be included in the convolution
+        t_s = self.RI_syn.get_tidx_for(t, self.s)
+        return ( self.params.τ_m * self.s.convolve(self.ε, t_s).sum(axis=-1) )
 
 
     def u_fn(self, t):
@@ -604,15 +603,18 @@ class GIF(models.Model):
         if shim.isscalar(t):
             s_tidx_m1 = self.t_hat.get_tidx_for(t, self.s) - 1
             t_tidx_m1 = self.t_hat.get_tidx(t) - 1
-            cond_tslice = 0
+            cond = shim.eq(self.s[s_tidx_m1], 0)
+            # If s is a sparse array, indexing doesn't reduce no. of dimensions
+            # cond = cond[0]
         else:
             s_t = self.t_hat.get_t_for(t, self.s)
             s_tidx_m1 = self.s.array_to_slice(s_t, lag=-1)
             t_tidx_m1 = self.t_hat.array_to_slice(t, lag=-1)
             cond_tslice = slice(None)
+            cond = shim.eq(self.s[s_tidx_m1], 0)
         # If the last bin was a spike, set the time to dt (time bin length)
         # Otherwise, add dt to the time
-        return shim.switch( (self.s[s_tidx_m1] == 0)[cond_tslice],
+        return shim.switch( cond,
                             self.t_hat[t_tidx_m1] + self.t_hat.dt,
                             self.t_hat.dt )
 
@@ -860,5 +862,79 @@ class GIF(models.Model):
         η.append( η[3][..., np.newaxis] * η[1] )  # η10
 
         return η
+
+    def symbolic_update(self, tidx, u0, t_hat0):
+        # Argument order is set by self.State
+        # Only include unlocked histories
+
+        tidx = tidx - self.t0idx
+        t_s = self.get_tidx_for(tidx, self.s)
+        t_Iext = self.get_tidx_for(tidx, self.I_ext)
+
+        assert self.s.locked
+        RI_syn = self.τ_m * self.s.convolve(self.ε, t_s).sum(axis=1)
+            # This expression also appears nonstate_symbolic_update, but
+            # Theano should recognize this and merge the expressions
+
+        cond = shim.eq(self.s[t_s-1], 0)
+        t_hat = shim.switch( cond,
+                             t_hat0 + self.t_hat.dt,
+                             self.t_hat.dt )
+
+        red_factor = shim.exp(-self.u.dt/self.params.τ_m)
+        u = shim.switch( shim.ge(t_hat, self.t_ref),
+                         u0 * red_factor
+                         + ( (self.u_rest + self.R * self.I_ext[t_Iext])
+                             + RI_syn )
+                           * (1 - red_factor),
+                         self.u_r )
+
+        # Same order as function signature
+        state_outputs = [u, t_hat]
+        updates = {}
+        return state_outputs, updates
+
+    def nonstate_symbolic_update(self, tidx, hists, curstate, curnonstate, newstate):
+        """
+        Arguments that the calling function will pass:
+        hists: list(self.unlocked_nonstatehistories)
+        curstate: symbolic variables corresponding to state histories
+        curnonstate: symbolic variables corresponding to histories in hists
+        newstate: `state_output` from `symbolic_update()`
+        """
+        tidx = tidx - self.t0idx
+
+        u0, t_hat0 = curstate
+        u, t_hat = newstate
+        # Use hists to figure out the order of arguments
+        # Ugly but functional
+        RIsyn_idx = hists.index(self.RI_syn) if self.RI_syn in hists else None
+        varθ_idx = hists.index(self.varθ) if self.varθ in hists else None
+        λ_idx = hists.index(self.λ) if self.λ in hists else None
+
+        # No need to unpack curnonstate because we don't use it
+        # λ0 = curnonstate[λ_idx] ...
+
+        assert self.s.locked
+        t_s = self.get_tidx_for(tidx, self.s)
+        RI_syn = self.τ_m * self.s.convolve(self.ε, t_s).sum(axis=1)
+        varθ = (self.u_th + self.s.convolve(self.θ1, t_s)
+                + self.s.convolve(self.θ2, t_s))
+        λ = self.params.c * shim.exp(  (u - varθ)/self.Δu )
+
+        nonstate_outputs = [None]*len(hists)
+        # Uglier but still functional
+        if RIsyn_idx is not None: nonstate_outputs[RIsyn_idx] = RI_syn
+        if varθ_idx is not None: nonstate_outputs[varθ_idx] = varθ
+        if λ_idx is not None: nonstate_outputs[λ_idx] = λ
+        assert None not in nonstate_outputs
+        updates = {}
+        return nonstate_outputs, updates
+
+
+
+
+
+
 
 models.register_model(GIF)
