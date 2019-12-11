@@ -1,11 +1,7 @@
 import numpy as np
 import theano_shim as shim
 from parameters import ParameterSet
-
 from sinn.histories import Series, PopulationSeries
-from sinn.popterm import PopTermMeso
-
-#from fsGIF.main import init_spiking_model
 from fsGIF.core import get_model_params
 from mesogif_model_series import GIF
 
@@ -17,31 +13,24 @@ shim.config.compute_test_value = 'warn'
 
 pop_sizes=(9,8)
 # n_bins x n, i.e. one time bin per row, one col. per node
-spike_trains = np.random.randint(30, size=(1000,sum(pop_sizes))) # 100 time bins, 17 nodes, up to 30 spikes per bin
+spike_trains = np.random.randint(30, size=(1000,sum(pop_sizes)))
 state_labels_1d = np.random.randint(3, size=(1000,1))  # state labels as state 0, 1, or 2
 # states converted to a binary n_bins x n_states matrix
 states_binary_2d = np.hstack((state_labels_1d==0, state_labels_1d==1, state_labels_1d==2)) + \
                    np.zeros((state_labels_1d.shape[0], 1))
-# states_17d = state_labels_1d * np.ones((1, 17))
 
 print('spike_trains.shape:', spike_trains.shape)
-print('states_binary_2d.shape:', states_binary_2d.shape)
-# print('states_17d.shape:', states_17d.shape)
+print('state_labels_1d.shape:', state_labels_1d.shape)
+# print('states_binary_2d.shape:', states_binary_2d.shape)
 
 
 param_dt = 4.
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
-# spiketrain = Series(name='s', time_array=tarr, shape=(sum(pop_sizes),))
 spiketrain.set(source=spike_trains)
-# spiketrain.set(source=np.hstack((states_binary_2d, spike_trains)))
 
-# state_hist = Series(t0=param_t0, tn=param_tn, dt=param_dt, shape=(3,))
-# state_hist.set(source=states_binary_2d)
 state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(1,))
 state_hist.set(source=state_labels_1d)
-# state_hist = Series(t0=param_t0, tn=param_tn, dt=param_dt, shape=(17,))
-# state_hist.set(source=states_17d)
 
 # Locking histories identifies them as data
 # The model will not modify them, and treats them as known inputs when
@@ -50,11 +39,6 @@ spiketrain.lock()
 state_hist.lock()
 
 model_params = get_model_params(ParameterSet("spike_model_params.ntparameterset"), "GIF_spiking")
-# HACK: Casting to PopTerm should be automatic
-# model_params = model_params._replace(
-#         τ_θ=PopTermMeso(pop_sizes, model_params.τ_θ, ('Meso',)),
-#         τ_m=PopTermMeso(pop_sizes, model_params.τ_m, ('Meso',)))
-
 spiking_model = GIF(model_params,
                     spiketrain, state_hist,
                     initializer='silent',
