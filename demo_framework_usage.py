@@ -6,7 +6,8 @@ from fsGIF.core import get_model_params
 from mesogif_model_series import GIF
 
 # Use load_theano=False to make debugging easier
-shim.load(load_theano=True)
+load_theano_flag = False
+shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
 
@@ -20,8 +21,8 @@ states_binary_2d = np.hstack((state_labels_1d==0, state_labels_1d==1, state_labe
                    np.zeros((state_labels_1d.shape[0], 1))
 
 print('spike_trains.shape:', spike_trains.shape)
-print('state_labels_1d.shape:', state_labels_1d.shape)
-# print('states_binary_2d.shape:', states_binary_2d.shape)
+# print('state_labels_1d.shape:', state_labels_1d.shape)
+print('states_binary_2d.shape:', states_binary_2d.shape)
 
 
 param_dt = 4.
@@ -29,8 +30,8 @@ tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
 spiketrain.set(source=spike_trains)
 
-state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(1,))
-state_hist.set(source=state_labels_1d)
+state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(3,))
+state_hist.set(source=states_binary_2d)
 
 # Locking histories identifies them as data
 # The model will not modify them, and treats them as known inputs when
@@ -54,6 +55,8 @@ print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time i
                  #batch_size=100,
                  #model=spiking_model)
 
+if not load_theano_flag:
+    exit() # don't run GD with pure numpy
 
 ########
 ## Gradient descent
