@@ -199,7 +199,9 @@ class GIF(models.Model):
         elif set_weights:
             # TODO: If parameters were less hacky, w would already be properly
             #       cast as an array
-            w = self.w * self.Γ
+            w = self.Γ
+            w[:self.params.N[0], :] = w[:self.params.N[0], :] * self.w[0][0]
+            w[self.params.N[0]:, :] = w[self.params.N[0]:, :] * self.w[1][0]
             self.s.set_connectivity(w)
 
         # Model variables
