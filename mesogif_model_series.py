@@ -190,8 +190,8 @@ class GIF(models.Model):
         self.original_params = self.params  # Store unexpanded params
         self.params = self.params._replace(
             **{name: self.expand_param(getattr(self.params, name), N)
-            for name in params._fields
-            if name != 'N'})
+               for name in params._fields
+               if name != 'N'})
 
         # Set the connection weights
         if isinstance(set_weights, np.ndarray):
@@ -199,18 +199,7 @@ class GIF(models.Model):
         elif set_weights:
             # TODO: If parameters were less hacky, w would already be properly
             #       cast as an array
-            # w = self.w * self.Γ
-            w = self.Γ
-            sum_n_i = 0
-            for i, n_i in enumerate(N):
-                prev_i = sum_n_i
-                sum_n_i += n_i
-                sum_n_j = 0
-                for j, n_j in enumerate(N):
-                    prev_j = sum_n_j
-                    sum_n_j += n_j
-                    w[prev_i:sum_n_i, prev_j:sum_n_j] = w[prev_i:sum_n_i, prev_j:sum_n_j] * self.w[i,j]
-
+            w = self.w * self.Γ
             self.s.set_connectivity(w)
 
         # Model variables
@@ -222,15 +211,16 @@ class GIF(models.Model):
         self.u = Series(self.RI_syn, 'u')
         # Surrogate variables
         self.t_hat = Series(self.RI_syn, 't_hat')
-            # time since last spike
+        # time since last spike
 
         # self.statehists = [ getattr(self, varname) for varname in self.State._fields ]
         # Kernels
         # HACK: Because PopTerm doesn't support shared arrays
-        if shim.is_theano_object(self.τ_s, self.Δ):
-            shape2d = (sum(N), sum(N))
-        else:
-            shape2d = (self.Npops, self.Npops)
+        shape2d = (sum(N), sum(N))
+        # if shim.is_theano_object(self.τ_s, self.Δ):
+        #     shape2d = (sum(N), sum(N))
+        # else:
+        #     shape2d = (self.Npops, self.Npops)
         self.ε = Kernel_ε('ε', self.params, shape=shape2d)
         # if values.name in ['t_ref', 'J_θ', 'τ_θ']:
         if homo:
@@ -441,6 +431,21 @@ class GIF(models.Model):
         # Function receives a slice of λ and s corresponding to the batch
         p = sinn.clip_probabilities(λ*self.s.dt)
         return ( s*p - (1-p) + s*(1-p) ).sum()  # sum over batch and neurons
+
+
+    def logp_numpy(self, t1, tn):
+        sum = 0
+        for i in range(t1, tn):
+            print('TEST')
+            print('self.λ[i]', self.λ[i])
+            print('self.s[i].dt', self.s[i].dt)
+            print('p', p)
+            print('self.s', self.s)
+            p = sinn.clip_probabilities(self.λ[i] * self.s[i].dt)
+            sum += (self.s[i] * p - (1 - p) + self.s[i] * (1 - p))
+
+        return sum
+
 
     # def loglikelihood(self, start, batch_size, data=None, avg=False,
     #                   flags=()):

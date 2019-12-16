@@ -11,27 +11,23 @@ shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
 
-
-pop_sizes=(9,8)
+t_n = 1000
+pop_sizes=(6,6,5)
 # n_bins x n, i.e. one time bin per row, one col. per node
-spike_trains = np.random.randint(30, size=(1000,sum(pop_sizes)))
-state_labels_1d = np.random.randint(3, size=(1000,1))  # state labels as state 0, 1, or 2
-# states converted to a binary n_bins x n_states matrix
-states_binary_2d = np.hstack((state_labels_1d==0, state_labels_1d==1, state_labels_1d==2)) + \
-                   np.zeros((state_labels_1d.shape[0], 1))
+spike_trains = np.random.randint(30, size=(t_n,sum(pop_sizes)))
+state_labels_1d = np.random.randint(3, size=(t_n,1))  # state labels as state 0, 1, or 2
+broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)
 
 print('spike_trains.shape:', spike_trains.shape)
-# print('state_labels_1d.shape:', state_labels_1d.shape)
-print('states_binary_2d.shape:', states_binary_2d.shape)
-
+print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
 param_dt = 4.
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
 spiketrain.set(source=spike_trains)
 
-state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(3,))
-state_hist.set(source=states_binary_2d)
+state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(sum(pop_sizes),))
+state_hist.set(source=broadcast_state_labels)
 
 # Locking histories identifies them as data
 # The model will not modify them, and treats them as known inputs when
@@ -39,7 +35,7 @@ state_hist.set(source=states_binary_2d)
 spiketrain.lock()
 state_hist.lock()
 
-model_params = get_model_params(ParameterSet("spike_model_params.ntparameterset"), "GIF_spiking")
+model_params = get_model_params(ParameterSet("spike_model_params_state_as_I_ext.ntparameterset"), "GIF_spiking")
 spiking_model = GIF(model_params,
                     spiketrain, state_hist,
                     initializer='silent',
@@ -49,8 +45,9 @@ spiking_model = GIF(model_params,
 print("loglikelihood")
 # Integrate the model forward to the time point with index 40
 spiking_model.advance(40)
-print(spiking_model.logp(40, 100))     # Int argument => Interpreted as time index
-print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
+# print(spiking_model.logp(40, 100))     # Int argument => Interpreted as time index
+print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
+# print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,
                  #model=spiking_model)
