@@ -7,8 +7,8 @@ from test_model import Demo
 from sys import exit
 
 # Use load_theano=False to make debugging easier
-load_theano_flag = True
-# load_theano_flag = False
+# load_theano_flag = True
+load_theano_flag = False
 shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
@@ -43,8 +43,8 @@ spiking_model = Demo(model_params, spiketrain, state_hist)
 
 # Integrate the model forward to the time point with index 40
 print("advancing..")
-spiking_model.advance(800)
-print("lp:", spiking_model.logp(400, 500))     # Int argument => Interpreted as time index
+spiking_model.advance(10)
+# print("lp:", spiking_model.logp(1, 2))     # Int argument => Interpreted as time index
 # print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",

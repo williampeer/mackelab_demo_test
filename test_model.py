@@ -3,6 +3,7 @@ import sinn
 import sinn.models as models
 from sinn.histories import Series
 from sinn.history_functions import GaussianWhiteNoise
+import numpy as np
 
 
 class Demo(models.Model):
@@ -16,10 +17,10 @@ class Demo(models.Model):
         ('d', 'floatX')
     ))
     Parameters = sinn.define_parameters(Parameter_info)
-    State = namedtuple('State', ['u', 'v', 'I'])
+    State = namedtuple('State', ['u', 'V', 'I'])
     # TODO: May make assumption about pathway and activity relative to state, and transform state to input.
 
-    def __init__(self, params, spike_history,
+    def __init__(self, params, spike_history, state_history,
                  initializer=None, set_weights=True, random_stream=None, memory_time=None):
 
         self.s = spike_history
@@ -27,7 +28,7 @@ class Demo(models.Model):
                          t0=self.s.t0, tn=self.s.tn, dt=self.s.dt,
                          reference_history=self.s)
 
-        self.V = Series(name='v', t0=self._t0, tn=self._tn, dt=self._dt, shape=(1,))
+        self.V = Series(name='V', t0=self._t0, tn=self._tn, dt=self._dt, shape=(1,))
         V = self.V
         self.I = Series(V, name='I', shape=V.shape)
         self.u = Series(V, name='u')
@@ -49,7 +50,20 @@ class Demo(models.Model):
         self.u.set_update_function(self.u_fn, inputs=self.V)
         self.I.set_update_function(self.I_fn, inputs=self.η)
 
+        # Pad every history correspoding to a differential equation
+        # by one to make space for the initial condition
+        self.V.pad(1)
+        self.u.pad(1)
+        # self.I.pad(1)
+
     def V_fn(self, t):
+        return np.reshape(0.1 * np.ones_like(t), (t[0], 1))
+
+    def u_fn(self, t):
+        return 0.
+
+    def I_fn(self, t):
+        return 0.
 
 
 sinn.models.register_model(Demo)
