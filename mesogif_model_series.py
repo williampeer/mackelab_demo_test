@@ -11,28 +11,22 @@ import scipy as sp
 from scipy.optimize import root
 from collections import namedtuple, OrderedDict, Iterable
 import logging
-import copy
-import operator
 
 import theano_shim as shim
-import mackelab_toolbox.utils as utils
 import sinn
-import sinn.config as config
-from sinn.histories import Series, PopulationHistory
+from sinn.histories import Series
 import sinn.kernels as kernels
 import sinn.models as models
 import sinn.popterm
 
 logger = logging.getLogger("fsgif_model")
 
-homo = False  # HACK
-
-# HACK
+homo = True
 shim.cf.inf = 1e12
     # Actual infinity doesn't play nice in kernels, because inf*0 is undefined
 
 # Debug flag(s)
-debugprint = False
+debugprint = True
     # If true, all intermediate values are printed in the symbolic graph
 
 class Kernel_ε(models.ModelKernelMixin, kernels.ExpKernel):
@@ -59,11 +53,8 @@ class Kernel_θ1(models.ModelKernelMixin, kernels.Kernel):
         else:
             height = (shim.cf.inf,)*model_params.N.get_value().sum()
             stop = model_params.t_ref
-            # if isinstance(model_params.t_ref, sinn.popterm.PopTerm):
-            #     # TODO: This is only required because some operations
-            #     #       aren't yet supported by PopTerm, so we expand
-            #     #       manually. Once that is fixed, we should remove this.
-            #     stop = stop.expand_blocks(['Macro', 'Micro'])
+            if isinstance(model_params.t_ref, sinn.popterm.PopTerm):
+                stop = stop.expand_blocks(['Macro', 'Micro'])
         return Kernel_θ1.Parameters(
             height = height,
             start  = 0,
@@ -74,11 +65,10 @@ class Kernel_θ1(models.ModelKernelMixin, kernels.Kernel):
         kern_params = self.get_kernel_params(params)
         memory_time = shim.asarray(shim.get_test_value(kern_params.stop)
                                    - kern_params.start).max()
-            # FIXME: At present, if we don't set memory_time now, tn is not set
-            #        properly
+            # At present, if we don't set memory_time now, tn is not set properly
         super().__init__(name, params, shape,
                          t0 = 0,
-                         memory_time = memory_time,  # FIXME: memory_time should be optional
+                         memory_time = memory_time,
                          **kwargs)
 
     def _eval_f(self, t, from_idx=slice(None,None)):
@@ -103,16 +93,11 @@ class Kernel_θ2(models.ModelKernelMixin, kernels.ExpKernel):
         )
 
 
-    # # UGLY HACK: Copied function from ExpKernel and added 'expand'
-    # def _eval_f(self, t, from_idx=slice(None,None)):
-    #     if homo:
-    #         return super()._eval_f(t, from_idx)
-    #     else:
-    #         return shim.switch(shim.lt(t, expand(self.params.t_offset[...,from_idx])),
-    #                         0,
-    #                         expand(self.params.height[...,from_idx]
-    #                             * shim.exp(-(t-self.params.t_offset[...,from_idx])
-    #                                     / self.params.decay_const[...,from_idx])) )
+    # UGLY HACK: Copied function from ExpKernel and added 'expand'
+    def _eval_f(self, t, from_idx=slice(None,None)):
+        if homo:
+            return super()._eval_f(t, from_idx)
+
 
 class GIF(models.Model):
 
@@ -160,8 +145,7 @@ class GIF(models.Model):
             avoid overwriting the connectivity. If an ndarray, that array will be used directly
             to set connectivity, ignoring model parameters. Default is True.
         """
-        # FIXME
-        if homo and initializer == 'stationary':
+        if not homo and initializer == 'stationary':
             raise NotImplementedError("Stationary initialization doesn't work with heterogeneous "
                                       "populations yet. Reason: "
                                       "`τmT = self.params.τ_m.flatten()[:, np.newaxis]` line")
@@ -197,7 +181,7 @@ class GIF(models.Model):
         if isinstance(set_weights, np.ndarray):
             self.s.set_connectivity(set_weights)
         elif set_weights:
-            # TODO: If parameters were less hacky, w would already be properly
+            # If parameters were less hacky, w would already be properly
             #       cast as an array
             w = self.w * self.Γ
             self.s.set_connectivity(w)
@@ -216,11 +200,12 @@ class GIF(models.Model):
         # self.statehists = [ getattr(self, varname) for varname in self.State._fields ]
         # Kernels
         # HACK: Because PopTerm doesn't support shared arrays
-        shape2d = (sum(N), sum(N))
-        # if shim.is_theano_object(self.τ_s, self.Δ):
-        #     shape2d = (sum(N), sum(N))
-        # else:
-        #     shape2d = (self.Npops, self.Npops)
+        # shape2d = (sum(N), sum(N))
+        if shim.is_theano_object(self.τ_s, self.Δ):
+            shape2d = (sum(N), sum(N))
+        else:
+            # shape2d = (self.Npops, self.Npops)
+            shape2d = (sum(N), sum(N))
         self.ε = Kernel_ε('ε', self.params, shape=shape2d)
         # if values.name in ['t_ref', 'J_θ', 'τ_θ']:
         if homo:
@@ -246,7 +231,7 @@ class GIF(models.Model):
         self.t_hat.set_update_function(self.t_hat_fn, inputs=[self.t_hat, self.s])
 
         # Pad to allow convolution
-        # FIXME Check with mesoGIF to see if memory_time could be better / more consistently treated
+        # Check with mesoGIF to see if memory_time could be better / more consistently treated
         if memory_time is None:
             memory_time = 0
         self.memory_time = shim.cast(max(memory_time,
@@ -327,7 +312,7 @@ class GIF(models.Model):
         # TODO: include spikes in model state, so we don't need this custom 'Stateplus'
         Stateplus = namedtuple('Stateplus', self.State._fields + ('s',))
         # Initialize the spikes
-        # We treat that as a Bernouilli process, with firing rate
+        # We treat that as a Bernoulli process, with firing rate
         # given by Astar; this means ISI statistics will be off as
         # we ignore refractory effects, but the overall rate will be
         # correct.
@@ -433,80 +418,64 @@ class GIF(models.Model):
         return ( s*p - (1-p) + s*(1-p) ).sum()  # sum over batch and neurons
 
 
-    def logp_numpy(self, t1, tn):
-        sum = 0
-        for i in range(t1, tn):
-            print('TEST')
-            print('self.λ[i]', self.λ[i])
-            print('self.s[i].dt', self.s[i].dt)
-            print('p', p)
-            print('self.s', self.s)
-            p = sinn.clip_probabilities(self.λ[i] * self.s[i].dt)
-            sum += (self.s[i] * p - (1 - p) + self.s[i] * (1 - p))
+    def loglikelihood(self, start, batch_size, data=None, avg=False,
+                      flags=()):
+        # >>>>>>>>>>>>>> WARNING: Untested, incomplete <<<<<<<<<<<<<
 
-        return sum
+        #######################
+        # to get around current limitations
+        self.remove_other_histories()
+        #####################
 
+        batch_size = self.index_interval(batch_size)
+        startidx = self.get_t_idx(start)
+        stopidx = startidx + batch_size
+        N = self.params.N
+        if data is None:
+            n_full = self.n
+            t0idx = self.n.t0idx
+        else:
+            n_full = data.astype(self.params.N.dtype)
+            t0idx = 0 # No offset if we provide data
 
-    # def loglikelihood(self, start, batch_size, data=None, avg=False,
-    #                   flags=()):
-    #     # >>>>>>>>>>>>>> WARNING: Untested, incomplete <<<<<<<<<<<<<
-    #
-    #     #######################
-    #     # Some hacks to get around current limitations
-    #
-    #     self.remove_other_histories()
-    #
-    #     # End hacks
-    #     #####################
-    #
-    #     batch_size = self.index_interval(batch_size)
-    #     startidx = self.get_t_idx(start)
-    #     stopidx = startidx + batch_size
-    #     N = self.params.N
-    #     if data is None:
-    #         n_full = self.n
-    #         t0idx = self.n.t0idx
-    #     else:
-    #         n_full = data.astype(self.params.N.dtype)
-    #         t0idx = 0 # No offset if we provide data
-    #
-    #     def logLstep(tidx, cum_logL):
-    #         p = sinn.clip_probabilities(self.λ[tidx]*self.s.dt)
-    #         s = shim.cast(self.s[tidx+self.s.t0idx], self.s.dtype)
-    #
-    #         # L = s*n - (1-s)*(1-p)
-    #         cum_logL += ( s*p - (1-p) + s*(1-p) ).sum()
-    #
-    #         return [cum_logL], shim.get_updates()
-    #
-    #     if shim.is_theano_object([self.s, self.params]):
-    #
-    #         logger.info("Producing the likelihood graph.")
-    #
-    #         if batch_size == 1:
-    #             # No need for scan
-    #             logL, upds = logLstep(start, 0)
-    #
-    #         else:
-    #             # FIXME np.float64 -> shim.floatX or sinn.floatX
-    #             logL, upds = shim.gettheano().scan(logLstep,
-    #                                             sequences = shim.getT().arange(startidx, stopidx),
-    #                                             outputs_info = np.asarray(0, dtype=shim.config.floatX))
-    #             self.apply_updates(upds)
-    #                 # Applying updates is essential to remove the temporary iteration variable
-    #                 # scan introduces from the shim updates dictionary
-    #
-    #         logger.info("Likelihood graph complete")
-    #
-    #         return logL[-1], upds
-    #     else:
-    #         # TODO: Remove this branch once shim.scan is implemented
-    #         logL = 0
-    #         for t in np.arange(startidx, stopidx):
-    #             logL = logLstep(t, logL)[0][0]
-    #         upds = shim.get_updates()
-    #
-    #         return logL, upds
+        def logLstep(tidx, cum_logL):
+            p = sinn.clip_probabilities(self.λ[tidx]*self.s.dt)
+            s = shim.cast(self.s[tidx+self.s.t0idx], self.s.dtype)
+
+            # L = s*n - (1-s)*(1-p)
+            cum_logL += ( s*p - (1-p) + s*(1-p) ).sum()
+
+            return [cum_logL], shim.get_updates()
+
+        if shim.is_theano_object([self.s, self.params]):
+
+            logger.info("Producing the likelihood graph.")
+
+            if batch_size == 1:
+                # No need for scan
+                logL, upds = logLstep(start, 0)
+
+            else:
+                # FIXME np.float64 -> shim.floatX or sinn.floatX
+                logL, upds = shim.gettheano().scan(logLstep,
+                                                sequences = shim.getT().arange(startidx, stopidx),
+                                                outputs_info = np.asarray(0, dtype=shim.config.floatX))
+                self.apply_updates(upds)
+                    # Applying updates is essential to remove the temporary iteration variable
+                    # scan introduces from the shim updates dictionary
+
+            logger.info("Likelihood graph complete")
+
+            return logL[-1], upds
+        else:
+            # TODO: Remove this branch once shim.scan is implemented
+            logL = 0
+            for t in np.arange(startidx, stopidx):
+                logL = logLstep(t, logL)[0][0]
+            upds = shim.get_updates()
+
+            return logL, upds
+
 
     # FIXME: Before replacing with Model's `advance`, need to remove HACKs
     def advance(self, stop):

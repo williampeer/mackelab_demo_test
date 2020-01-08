@@ -1,6 +1,5 @@
 from collections import Callable, deque, namedtuple
 import numpy as np
-import mackelab as ml
 from odictliteral import odict
 
 import theano_shim as shim

@@ -3,7 +3,7 @@ import theano_shim as shim
 from parameters import ParameterSet
 from sinn.histories import Series, PopulationSeries
 from fsGIF.core import get_model_params
-from mesogif_model_series import GIF
+from test_model import Demo
 from sys import exit
 
 # Use load_theano=False to make debugging easier
@@ -37,11 +37,8 @@ state_hist.set(source=broadcast_state_labels)
 spiketrain.lock()
 state_hist.lock()
 
-model_params = get_model_params(ParameterSet("spike_model_params_state_as_I_ext.ntparameterset"), "GIF_spiking")
-spiking_model = GIF(model_params,
-                    spiketrain, state_hist,
-                    initializer='stationary',
-                    set_weights=True)
+model_params = get_model_params(ParameterSet("demo.ntparameterset"), "Demo")
+spiking_model = Demo(model_params, spiketrain, state_hist)
 
 
 # Integrate the model forward to the time point with index 40

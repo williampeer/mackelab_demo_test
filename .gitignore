@@ -4,3 +4,4 @@ compilecache.sinn*
 
 .idea/*
 src/*
+__pycache__/*
