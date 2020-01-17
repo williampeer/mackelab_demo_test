@@ -17,7 +17,7 @@ class Demo(models.Model):
         ('d', 'floatX')
     ))
     Parameters = sinn.define_parameters(Parameter_info)
-    State = namedtuple('State', ['u', 'V', 'I'])
+    State = namedtuple('State', ['V'])
     # TODO: May make assumption about pathway and activity relative to state, and transform state to input.
 
     def __init__(self, params, spike_history, state_history,
@@ -30,8 +30,8 @@ class Demo(models.Model):
 
         self.V = Series(name='V', t0=self._t0, tn=self._tn, dt=self._dt, shape=(1,))
         V = self.V
-        self.I = Series(V, name='I', shape=V.shape)
-        self.u = Series(V, name='u')
+        # self.I = Series(V, name='I')
+        # self.u = Series(V, name='u')
 
         self.η = GaussianWhiteNoise(V, name='η', random_stream=self.rng,
                                     shape=V.shape, std=1.)
@@ -42,28 +42,32 @@ class Demo(models.Model):
         models.Model.output_rng(self.s, self.rndstream)
 
         self.add_history(self.V)
-        self.add_history(self.u)
-        self.add_history(self.I)
+        # self.add_history(self.u)
+        # self.add_history(self.I)
         self.add_history(self.η)
 
-        self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
-        self.u.set_update_function(self.u_fn, inputs=self.V)
-        self.I.set_update_function(self.I_fn, inputs=self.η)
+        # self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
+        self.V.set_update_function(self.V_fn, inputs=[self.η])
+        # self.u.set_update_function(self.u_fn, inputs=self.V)
+        # self.I.set_update_function(self.I_fn, inputs=self.η)
 
-        # Pad every history correspoding to a differential equation
+        # Pad every history corresponding to a differential equation
         # by one to make space for the initial condition
         self.V.pad(1)
-        self.u.pad(1)
+        # self.u.pad(1)
         # self.I.pad(1)
 
     def V_fn(self, t):
-        return np.reshape(0.1 * np.ones_like(t), (t[0], 1))
+        # return np.reshape(0.1 * np.ones_like(t), (t[0], 1))
+        iη = self.V.get_tidx_for(t, self.η); η = self.η[iη]
+        return η
 
     def u_fn(self, t):
-        return 0.
+        # return 0.
+        return np.reshape(0.1 * np.ones_like(t), (t[0], 1))
 
-    def I_fn(self, t):
-        return 0.
+    # def I_fn(self, t):
+    #     return np.reshape(0.1 * np.ones_like(t), (t[0], 1))
 
 
 sinn.models.register_model(Demo)
