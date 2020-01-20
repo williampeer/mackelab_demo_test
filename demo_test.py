@@ -40,12 +40,14 @@ state_hist.lock()
 model_params = get_model_params(ParameterSet("demo.ntparameterset"), "Demo")
 spiking_model = Demo(model_params, spiketrain, state_hist)
 
+print('initialising..')
+spiking_model.initialize()
 
 # Integrate the model forward to the time point with index 40
 print("advancing..")
 spiking_model.advance(10)
 # print("lp:", spiking_model.logp(1, 2))     # Int argument => Interpreted as time index
-# print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
+print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,
