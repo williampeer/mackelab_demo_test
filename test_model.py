@@ -28,12 +28,18 @@ class Demo(models.Model):
                          t0=self.s.t0, tn=self.s.tn, dt=self.s.dt,
                          reference_history=self.s)
 
-        self.V = Series(name='V', t0=self._t0, tn=self._tn, dt=self._dt, shape=(1,))
+        N = self.params.N.get_value()
+        assert (N.ndim == 1)
+        self.Npops = len(N)
+
+        self.V = Series(name='V', t0=self._t0, tn=self._tn, dt=self._dt, shape=(N.sum(),))
         V = self.V
         # `V` is passed as a template: defines default time stops & shape - COPY SETUP
         self.Vbar = Series(V, name='Vbar')
         self.I = Series(V, name='I')
         self.u = Series(V, name='u')
+
+        self.s_modelled = Series(V, name='s_modelled')
 
         # TODO: Implement rndstream using Theano
         # if random_stream is not None:
@@ -64,6 +70,13 @@ class Demo(models.Model):
         self.V.pad(1)
         self.u.pad(1)
         self.I.pad(1)
+
+
+        self.original_params = self.params  # Store unexpanded params
+        self.params = self.params._replace(
+            **{name: self.expand_param(getattr(self.params, name), N)
+               for name in params._fields
+               if name != 'N'})
 
     # -------- Initialization ----------- #
     def initialize(self, t=None, symbolic=False):
