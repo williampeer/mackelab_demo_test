@@ -73,10 +73,10 @@ class Demo(models.Model):
 
 
         self.original_params = self.params  # Store unexpanded params
-        self.params = self.params._replace(
-            **{name: self.expand_param(getattr(self.params, name), N)
-               for name in params._fields
-               if name != 'N'})
+        # self.params = self.params._replace(
+        #     **{name: self.expand_param(getattr(self.params, name), N)
+        #        for name in params._fields
+        #        if name != 'N'})
 
     # -------- Initialization ----------- #
     def initialize(self, t=None, symbolic=False):
@@ -112,8 +112,8 @@ class Demo(models.Model):
         iI = self.V.get_t_idx(t, self.I)
         I_t = self.u[iI-1]
 
-        if (V_t >= 30.):
-            return -65.0
+        # if (V_t >= 30.):  # TODO: fix discontinuity per node
+        #     return -65.0
 
         # dVi = 0.04 * Vbar_t ** 2 + 5 * Vbar_t + 140 - u_t + I_t
         dVi = 0.04 * V_t ** 2 + 5. * V_t + 140. - u_t + I_t
@@ -132,8 +132,8 @@ class Demo(models.Model):
         iu = self.V.get_t_idx(t, self.u)
         u_t = self.u[iu - 1]
 
-        if (V_t >= 30.):
-            return u_t + 8.0
+        # if (V_t >= 30.):
+        #     return u_t + 8.0
         return 0.1 * (0.25 * V_t - u_t)  # this makes one bin one timestep.
         # return 16.0 * np.reshape(np.zeros_like(t), (t[0], 1))
 
@@ -142,7 +142,7 @@ class Demo(models.Model):
         # η_i = self.η[iη]
         # return η_i
         # return 0.001 * np.reshape(np.random.random(t.shape), (t[0], 1))
-        return 0.
+        return np.zeros_like(self.I[0])
 
     def logp_numpy(self, t0, tn):
         return "logp."

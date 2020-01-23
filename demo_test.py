@@ -13,6 +13,7 @@ shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
 
+param_dt = 0.002
 t_n = 1000
 pop_sizes=(6,6,5)
 # n_bins x n, i.e. one time bin per row, one col. per node
@@ -23,8 +24,7 @@ broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)
 print('spike_trains.shape:', spike_trains.shape)
 print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
-param_dt = 4.
-tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
+tarr = np.arange(t_n)*param_dt    # 100 bins, each lasting 4 seconds
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
 spiketrain.set(source=spike_trains)
 

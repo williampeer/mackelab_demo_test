@@ -7,8 +7,8 @@ from mesogif_model_series import GIF
 from sys import exit
 
 # Use load_theano=False to make debugging easier
+# load_theano_flag = True
 load_theano_flag = False
-# load_theano_flag = False
 shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
@@ -25,7 +25,7 @@ broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)  # broadc
 print('spike_trains.shape:', spike_trains.shape)
 print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
-param_dt = 4.
+param_dt = 0.002
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
 # spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=len(pop_sizes))
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=sum(pop_sizes))
@@ -50,8 +50,8 @@ spiking_model = GIF(model_params,
 
 # Integrate the model forward to the time point with index 40
 print("advancing..")
-spiking_model.advance(10)
-print("lp:", spiking_model.logp(10, 20))     # Int argument => Interpreted as time index
+spiking_model.advance(20)
+print("lp:", spiking_model.logp(20, 30))     # Int argument => Interpreted as time index
 # print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",

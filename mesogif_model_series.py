@@ -86,7 +86,8 @@ class Kernel_θ2(models.ModelKernelMixin, kernels.ExpKernel):
         # else:
         #     t_offset = model_params.t_ref
         t_offset = model_params.t_ref
-        return kernels.ExpKernel.Parameters(
+        # return kernels.ExpKernel.Parameters(
+        return Kernel_θ2.Parameters(
             height      = model_params.J_θ / model_params.τ_θ,
             decay_const = model_params.τ_θ,
             t_offset    = t_offset
@@ -95,8 +96,8 @@ class Kernel_θ2(models.ModelKernelMixin, kernels.ExpKernel):
 
     # UGLY HACK: Copied function from ExpKernel and added 'expand'
     def _eval_f(self, t, from_idx=slice(None,None)):
-        if homo:
-            return super()._eval_f(t, from_idx)
+        # if homo:
+        return super()._eval_f(t, from_idx)
 
 
 class GIF(models.Model):
