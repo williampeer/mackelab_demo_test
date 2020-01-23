@@ -7,7 +7,7 @@ from mesogif_model_series import GIF
 from sys import exit
 
 # Use load_theano=False to make debugging easier
-load_theano_flag = True
+load_theano_flag = False
 # load_theano_flag = False
 shim.load(load_theano=load_theano_flag)
 
@@ -16,18 +16,22 @@ shim.config.compute_test_value = 'warn'
 t_n = 1000
 pop_sizes=(6,6,5)
 # n_bins x n, i.e. one time bin per row, one col. per node
+# spike_trains = np.random.randint(30, size=(t_n,len(pop_sizes)))
 spike_trains = np.random.randint(30, size=(t_n,sum(pop_sizes)))
 state_labels_1d = np.random.randint(3, size=(t_n,1))  # state labels as state 0, 1, or 2
-broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)
+broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)  # broadcasting
+# broadcast_state_labels = np.zeros_like(spike_trains)
 
 print('spike_trains.shape:', spike_trains.shape)
 print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
 param_dt = 4.
 tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
-spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
+# spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=len(pop_sizes))
+spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=sum(pop_sizes))
 spiketrain.set(source=spike_trains)
 
+# state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(sum(pop_sizes),))
 state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(sum(pop_sizes),))
 state_hist.set(source=broadcast_state_labels)
 
@@ -46,8 +50,8 @@ spiking_model = GIF(model_params,
 
 # Integrate the model forward to the time point with index 40
 print("advancing..")
-spiking_model.advance(800)
-print("lp:", spiking_model.logp(400, 500))     # Int argument => Interpreted as time index
+spiking_model.advance(10)
+print("lp:", spiking_model.logp(10, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",

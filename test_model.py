@@ -134,4 +134,5 @@ class Demo(models.Model):
     def logp_numpy(self, t0, tn):
         return "logp."
 
+
 sinn.models.register_model(Demo)

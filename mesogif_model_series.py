@@ -21,7 +21,7 @@ import sinn.popterm
 
 logger = logging.getLogger("fsgif_model")
 
-homo = True
+homo = False
 shim.cf.inf = 1e12
     # Actual infinity doesn't play nice in kernels, because inf*0 is undefined
 
@@ -145,10 +145,10 @@ class GIF(models.Model):
             avoid overwriting the connectivity. If an ndarray, that array will be used directly
             to set connectivity, ignoring model parameters. Default is True.
         """
-        if not homo and initializer == 'stationary':
-            raise NotImplementedError("Stationary initialization doesn't work with heterogeneous "
-                                      "populations yet. Reason: "
-                                      "`τmT = self.params.τ_m.flatten()[:, np.newaxis]` line")
+        # if not homo and initializer == 'stationary':
+        #     raise NotImplementedError("Stationary initialization doesn't work with heterogeneous "
+        #                               "populations yet. Reason: "
+        #                               "`τmT = self.params.τ_m.flatten()[:, np.newaxis]` line")
 
         self.s = spike_history
         self.I_ext = input_history
@@ -211,6 +211,7 @@ class GIF(models.Model):
         if homo:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(self.Npops,))
             self.θ2 = Kernel_θ2('θ2', self.params, shape=(self.Npops,))
+            # self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
         else:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(sum(N),))
             self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
