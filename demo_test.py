@@ -53,8 +53,9 @@ print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as tim
                  #batch_size=100,
                  #model=spiking_model)
 
-if not load_theano_flag:
-    exit() # don't run GD with pure numpy
+# if not load_theano_flag:
+#     exit() # don't run GD with pure numpy
+exit() # don't run GD with pure numpy
 
 ########
 ## Gradient descent

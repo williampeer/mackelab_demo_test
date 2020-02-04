@@ -21,7 +21,7 @@ import sinn.popterm
 
 logger = logging.getLogger("fsgif_model")
 
-homo = False
+homo = True
 shim.cf.inf = 1e12
     # Actual infinity doesn't play nice in kernels, because inf*0 is undefined
 
@@ -86,8 +86,8 @@ class Kernel_θ2(models.ModelKernelMixin, kernels.ExpKernel):
         # else:
         #     t_offset = model_params.t_ref
         t_offset = model_params.t_ref
-        # return kernels.ExpKernel.Parameters(
-        return Kernel_θ2.Parameters(
+        return kernels.ExpKernel.Parameters(
+        # return Kernel_θ2.Parameters(
             height      = model_params.J_θ / model_params.τ_θ,
             decay_const = model_params.τ_θ,
             t_offset    = t_offset
@@ -211,8 +211,8 @@ class GIF(models.Model):
         # if values.name in ['t_ref', 'J_θ', 'τ_θ']:
         if homo:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(self.Npops,))
-            self.θ2 = Kernel_θ2('θ2', self.params, shape=(self.Npops,))
-            # self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
+            # self.θ2 = Kernel_θ2('θ2', self.params, shape=(self.Npops,))
+            self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
         else:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(sum(N),))
             self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
@@ -628,7 +628,7 @@ class GIF(models.Model):
 
         shape = (reference_hist.npops,) if homo else reference_hist.shape
         θ_dis = Series(reference_hist, 'θ_dis',
-                       time_array = np.arange(dt, memory_time+dt, dt),
+                       time_array = np.arange(dt, memory_time+dt, dt), # for some reason memory_time is above 3*dt - floating point imprecision?
                        #t0 = dt,
                        #tn = memory_time+reference_hist.dt,
                        shape = shape,
@@ -661,7 +661,8 @@ class GIF(models.Model):
 
         # TODO: Use operations
         θtilde_dis = Series(θ_dis, 'θtilde_dis', iterative=False)
-        θtilde_data = params.Δu * (1 - shim.exp(-θ_data/params.Δu) ) / params.N
+        tmp = shim.exp(-θ_data/params.Δu)
+        θtilde_data = params.Δu * (1 - tmp) / params.N
             # Division by N follows definition in pseudocode; text puts division
             # in the expression for varθ.
 
