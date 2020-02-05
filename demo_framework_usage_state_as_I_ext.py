@@ -54,7 +54,8 @@ print("advancing..")
 spiking_model.advance(21)
 print("done. computing logp..")
 # print("lp:", spiking_model.logp(20, 20))     # Int argument => Interpreted as time index
-print(spiking_model.logp_numpy(0, 20))     # Int argument => Interpreted as time index
+# print(spiking_model.logp_numpy(0, 20))     # Int argument => Interpreted as time index
+print("lp:", spiking_model.loglikelihood(0, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,
