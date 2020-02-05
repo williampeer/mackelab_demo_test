@@ -205,12 +205,12 @@ class GIF(models.Model):
         # self.statehists = [ getattr(self, varname) for varname in self.State._fields ]
         # Kernels
         # HACK: Because PopTerm doesn't support shared arrays
-        # shape2d = (sum(N), sum(N))
-        if shim.is_theano_object(self.τ_s, self.Δ):
-            shape2d = (sum(N), sum(N))
-        else:
-            # shape2d = (self.Npops, self.Npops)
-            shape2d = (sum(N), sum(N))
+        shape2d = (sum(N), sum(N))
+        # if shim.is_theano_object(self.τ_s, self.Δ):
+        #     shape2d = (sum(N), sum(N))
+        # else:
+        #     shape2d = (self.Npops, self.Npops)
+        #     # shape2d = (sum(N), sum(N))
         self.ε = Kernel_ε('ε', self.params, shape=shape2d)
         # if values.name in ['t_ref', 'J_θ', 'τ_θ']:
         if homo:
@@ -447,12 +447,12 @@ class GIF(models.Model):
         startidx = self.get_t_idx(start)
         stopidx = startidx + batch_size
         N = self.params.N
-        if data is None:
-            n_full = self.n
-            t0idx = self.n.t0idx
-        else:
-            n_full = data.astype(self.params.N.dtype)
-            t0idx = 0 # No offset if we provide data
+        # if data is None:
+        #     n_full = self.Npops
+        #     t0idx = self.n.t0idx
+        # else:
+        #     n_full = data.astype(self.params.N.dtype)
+        #     t0idx = 0 # No offset if we provide data
 
         def logLstep(tidx, cum_logL):
             p = sinn.clip_probabilities(self.λ[tidx]*self.s.dt)
@@ -577,8 +577,9 @@ class GIF(models.Model):
     def varθ_fn(self, t):
         """Dynamic threshold. Eq. (22)."""
         t_s = self.RI_syn.get_t_for(t, self.s)
-        return (self.params.u_th + self.s.convolve(self.θ1, t_s)
-                + self.s.convolve(self.θ2, t_s))
+        conv_1 = self.s.convolve(self.θ1, t_s)
+        conv_2 = self.s.convolve(self.θ2, t_s)
+        return (self.params.u_th + conv_1 + conv_2)
             # Need to fix spiketrain convolution before we can use the exponential
             # optimization. (see fixme comments in histories.spiketrain._convolve_single_t
             # and kernels.ExpKernel._convolve_single_t)
