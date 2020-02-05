@@ -13,7 +13,7 @@ shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
 
-t_n = 1000
+t_n = 1001
 pop_sizes=(6,6,5)
 # n_bins x n, i.e. one time bin per row, one col. per node
 # spike_trains = np.random.randint(30, size=(t_n,len(pop_sizes)))
@@ -26,7 +26,7 @@ print('spike_trains.shape:', spike_trains.shape)
 print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
 param_dt = 0.002
-tarr = np.arange(1000)*param_dt    # 100 bins, each lasting 4 seconds
+tarr = np.arange(t_n)*param_dt    # 100 bins, each lasting 4 seconds
 # spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=len(pop_sizes))
 spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=sum(pop_sizes))
 spiketrain.set(source=spike_trains)
@@ -39,20 +39,22 @@ state_hist.set(source=broadcast_state_labels)
 # The model will not modify them, and treats them as known inputs when
 # constructing computation graphs.
 spiketrain.lock()
-state_hist.lock()
+# state_hist.lock()
 
 model_params = get_model_params(ParameterSet("spike_model_params_state_as_I_ext.ntparameterset"), "GIF_spiking")
 spiking_model = GIF(model_params,
                     spiketrain, state_hist,
-                    initializer='stationary',
+                    # spiketrain,
+                    initializer='silent',
                     set_weights=True)
 
 
 # Integrate the model forward to the time point with index 40
 print("advancing..")
-spiking_model.advance(20)
-print("lp:", spiking_model.logp(20, 30))     # Int argument => Interpreted as time index
-# print(spiking_model.logp_numpy(40, 100))     # Int argument => Interpreted as time index
+spiking_model.advance(21)
+print("done. computing logp..")
+# print("lp:", spiking_model.logp(20, 20))     # Int argument => Interpreted as time index
+print(spiking_model.logp_numpy(0, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
 #gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,

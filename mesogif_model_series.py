@@ -133,8 +133,6 @@ class GIF(models.Model):
     Parameters = sinn.define_parameters(Parameter_info)
     State = namedtuple('State', ['u', 't_hat', 's'])
 
-    default_initializer = 'stationary'
-
     def __init__(self, params, spike_history, input_history,
                  initializer=None, set_weights=True, random_stream=None, memory_time=None):
         """
@@ -152,15 +150,21 @@ class GIF(models.Model):
         #                               "`τmT = self.params.τ_m.flatten()[:, np.newaxis]` line")
 
         self.s = spike_history
+        # if input_history is not None:
+        #     self.I_ext = input_history
+        # else:
+        #     self.I_ext = []
         self.I_ext = input_history
         self.rndstream = random_stream
         # if not isinstance(self.s, PopulationHistory):
         #     raise ValueError("Spike history must be an instance of sinn.PopulationHistory.")
-        if not isinstance(self.I_ext, Series):
-            raise ValueError("External input history must be an instance of sinn.Series.")
+
         # This runs consistency tests on the parameters
+        if self.I_ext is not None:
+            if not isinstance(self.I_ext, Series):
+                raise ValueError("External input history must be an instance of sinn.Series.")
+            models.Model.same_dt(self.s, self.I_ext)
         # models.Model.same_shape(self.s, self.I)
-        models.Model.same_dt(self.s, self.I_ext)
         models.Model.output_rng(self.s, self.rndstream)
 
         super().__init__(params,
@@ -218,7 +222,8 @@ class GIF(models.Model):
             self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
 
         self.add_history(self.s)
-        self.add_history(self.I_ext)
+        if self.I_ext is not None:
+            self.add_history(self.I_ext)
         self.add_history(self.λ)
         self.add_history(self.varθ)
         self.add_history(self.u)
@@ -267,6 +272,9 @@ class GIF(models.Model):
         #       which is unset)
 
     def init_state_vars(self, initializer=None):
+        # default_initializer = 'stationary'
+        # default_initializer = 'silent'
+
         if initializer is None:
             initializer = self.default_initializer
         else:
@@ -419,6 +427,12 @@ class GIF(models.Model):
         p = sinn.clip_probabilities(λ*self.s.dt)
         return ( s*p - (1-p) + s*(1-p) ).sum()  # sum over batch and neurons
 
+    def logp_numpy(self, t0, t_k):
+        # Function receives a slice of λ and s corresponding to the batch
+        λ = self.λ[t0:t_k]
+        s = self.s[t0:t_k]
+        p = sinn.clip_probabilities(λ*self.s.dt)
+        return ( s*p - (1-p) + s*(1-p) ).sum()  # sum over batch and neurons
 
     def loglikelihood(self, start, batch_size, data=None, avg=False,
                       flags=()):
