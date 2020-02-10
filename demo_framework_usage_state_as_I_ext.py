@@ -15,9 +15,11 @@ shim.config.compute_test_value = 'warn'
 
 t_n = 1001
 pop_sizes=(6,6,5)
+# pop_sizes=(1,1,1)
 # n_bins x n, i.e. one time bin per row, one col. per node
 # spike_trains = np.random.randint(30, size=(t_n,len(pop_sizes)))
 spike_trains = np.random.randint(30, size=(t_n,sum(pop_sizes)))
+# spike_trains = np.random.randint(30, size=(t_n,len(pop_sizes)))
 state_labels_1d = np.random.randint(3, size=(t_n,1))  # state labels as state 0, 1, or 2
 broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)  # broadcasting
 # broadcast_state_labels = np.zeros_like(spike_trains)
@@ -27,12 +29,10 @@ print('broadcast_state_labels.shape:', broadcast_state_labels.shape)
 
 param_dt = 0.002
 tarr = np.arange(t_n)*param_dt    # 100 bins, each lasting 4 seconds
-# spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=len(pop_sizes))
-spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=sum(pop_sizes))
+spiketrain = PopulationSeries(name='s', time_array=tarr, pop_sizes=pop_sizes)
 spiketrain.set(source=spike_trains)
 
-# state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(sum(pop_sizes),))
-state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(sum(pop_sizes),))
+state_hist = Series(name='z', time_array=tarr, dt=param_dt, shape=(broadcast_state_labels.shape[1],))
 state_hist.set(source=broadcast_state_labels)
 
 # Locking histories identifies them as data

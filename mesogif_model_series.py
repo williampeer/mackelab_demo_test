@@ -93,11 +93,10 @@ class Kernel_θ2(models.ModelKernelMixin, kernels.ExpKernel):
             t_offset    = t_offset
         )
 
-
-    # UGLY HACK: Copied function from ExpKernel and added 'expand'
-    def _eval_f(self, t, from_idx=slice(None,None)):
-        # if homo:
-        return super()._eval_f(t, from_idx)
+    # # UGLY HACK: Copied function from ExpKernel and added 'expand'
+    # def _eval_f(self, t, from_idx=slice(None,None)):
+    #     # if homo:
+    #     return super()._eval_f(t, from_idx)
 
 
 class GIF(models.Model):
@@ -215,8 +214,8 @@ class GIF(models.Model):
         # if values.name in ['t_ref', 'J_θ', 'τ_θ']:
         if homo:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(self.Npops,))
-            # self.θ2 = Kernel_θ2('θ2', self.params, shape=(self.Npops,))
-            self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
+            self.θ2 = Kernel_θ2('θ2', self.params, shape=(self.Npops,))
+            # self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
         else:
             self.θ1 = Kernel_θ1('θ1', self.params, shape=(sum(N),))
             self.θ2 = Kernel_θ2('θ2', self.params, shape=(sum(N),))
@@ -272,13 +271,9 @@ class GIF(models.Model):
         #       which is unset)
 
     def init_state_vars(self, initializer=None):
-        # default_initializer = 'stationary'
-        # default_initializer = 'silent'
-
         if initializer is None:
             initializer = self.default_initializer
         else:
-            # Update default initializer
             self.default_initializer = initializer
 
         if initializer == 'stationary':
