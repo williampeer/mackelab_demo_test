@@ -7,15 +7,15 @@ from mesogif_model_series import GIF
 from sys import exit
 
 # Use load_theano=False to make debugging easier
-# load_theano_flag = True
-load_theano_flag = False
+load_theano_flag = True
+# load_theano_flag = False
 shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
 
 t_n = 1001
 pop_sizes=(6,6,5)
-# pop_sizes=(1,1,1)
+
 # n_bins x n, i.e. one time bin per row, one col. per node
 # spike_trains = np.random.randint(30, size=(t_n,len(pop_sizes)))
 spike_trains = np.random.randint(30, size=(t_n,sum(pop_sizes)))
@@ -39,7 +39,7 @@ state_hist.set(source=broadcast_state_labels)
 # The model will not modify them, and treats them as known inputs when
 # constructing computation graphs.
 spiketrain.lock()
-# state_hist.lock()
+state_hist.lock()
 
 model_params = get_model_params(ParameterSet("spike_model_params_state_as_I_ext.ntparameterset"), "GIF_spiking")
 spiking_model = GIF(model_params,
