@@ -6,7 +6,8 @@ from sinn.history_functions import GaussianWhiteNoise
 import numpy as np
 from theano.tensor.shared_randomstreams import RandomStreams
 
-class Demo(models.Model):
+
+class Izhikevich(models.Model):
     requires_rng = True
     Parameter_info = OrderedDict((
         ('N', 'int16'),
@@ -148,4 +149,4 @@ class Demo(models.Model):
         return "logp."
 
 
-sinn.models.register_model(Demo)
+sinn.models.register_model(Izhikevich)

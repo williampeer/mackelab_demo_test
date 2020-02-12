@@ -38,7 +38,7 @@ from parameters import ParameterSet
 # Model import
 import fsGIF.fsgif_model as gif
 from fsGIF.fsgif_model import GIF_spiking
-from test_model import Demo
+from izhikevich_model import Demo
 home_dir = "/home/alex/Recherche/macke_lab/run/fsGIF"
 # home_dir = os.path.dirname(os.path.dirname(__file__))
 data_dir = home_dir + "/data"

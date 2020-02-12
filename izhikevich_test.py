@@ -3,7 +3,7 @@ import theano_shim as shim
 from parameters import ParameterSet
 from sinn.histories import Series, PopulationSeries
 from fsGIF.core import get_model_params
-from test_model import Demo
+from izhikevich_model import Izhikevich
 from sys import exit
 
 # Use load_theano=False to make debugging easier
@@ -37,8 +37,8 @@ state_hist.set(source=broadcast_state_labels)
 spiketrain.lock()
 state_hist.lock()
 
-model_params = get_model_params(ParameterSet("demo.ntparameterset"), "Demo")
-spiking_model = Demo(model_params, spiketrain, state_hist)
+model_params = get_model_params(ParameterSet("params_izhikevich.ntparameterset"), "Demo")
+spiking_model = Izhikevich(model_params, spiketrain, state_hist)
 
 print('initialising..')
 spiking_model.initialize()
