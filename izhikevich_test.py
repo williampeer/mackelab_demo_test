@@ -37,7 +37,7 @@ state_hist.set(source=broadcast_state_labels)
 spiketrain.lock()
 state_hist.lock()
 
-model_params = get_model_params(ParameterSet("params_izhikevich.ntparameterset"), "Demo")
+model_params = get_model_params(ParameterSet("params_izhikevich.ntparameterset"), "Izhikevich")
 spiking_model = Izhikevich(model_params, spiketrain, state_hist)
 
 print('initialising..')
@@ -56,4 +56,3 @@ print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as tim
 # if not load_theano_flag:
 #     exit() # don't run GD with pure numpy
 exit() # don't run GD with pure numpy
-
