@@ -18,7 +18,7 @@ pop_sizes=(6,6,5)
 
 spike_trains = np.random.randint(30, size=(t_n,sum(pop_sizes)))  # n_bins x n; one time bin per row, one col. per node
 state_labels_1d = np.random.randint(3, size=(t_n,1))  # state labels as state 0, 1, or 2
-broadcast_state_labels = state_labels_1d + np.zeros_like(spike_trains)
+broadcast_state_labels = 0.5 * state_labels_1d + np.zeros_like(spike_trains)  # see "Writing" for discussion
 
 print('spike_trains.shape:', spike_trains.shape)
 print('broadcast_state_labels.shape:', broadcast_state_labels.shape)

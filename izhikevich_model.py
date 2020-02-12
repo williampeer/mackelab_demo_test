@@ -19,12 +19,15 @@ class Izhikevich(models.Model):
     ))
     Parameters = sinn.define_parameters(Parameter_info)
     State = namedtuple('State', ['I', 'V'])
+
     # TODO: May make assumption about pathway and activity relative to state, and transform state to input.
 
     def __init__(self, params, spike_history, state_history,
                  initializer=None, set_weights=True, random_stream=None, memory_time=None):
 
         self.s = spike_history
+        self.I_ext = state_history  # TODO: incorporate
+
         super().__init__(params,
                          t0=self.s.t0, tn=self.s.tn, dt=self.s.dt,
                          reference_history=self.s)
@@ -51,6 +54,7 @@ class Izhikevich(models.Model):
         #                             shape=V.shape, std=1.)
 
         models.Model.same_dt(self.s, self.V)
+        models.Model.same_dt(self.s_modelled, self.s)
         # models.Model.same_dt(self.s, self.I_ext)
         # models.Model.output_rng(self.s, self.rndstream)
 
@@ -72,7 +76,6 @@ class Izhikevich(models.Model):
         self.u.pad(1)
         self.I.pad(1)
 
-
         self.original_params = self.params  # Store unexpanded params
         # self.params = self.params._replace(
         #     **{name: self.expand_param(getattr(self.params, name), N)
@@ -89,7 +92,8 @@ class Izhikevich(models.Model):
         `True` keeps symbolic dependencies.
         """
         self.clear_unlocked_histories()
-        if t is None: t = 0
+        if t is None:
+            t = 0
         tidx = self.get_tidx(t) - 1
         if not self.V.locked:
             i = self.get_tidx_for(tidx, self.V)
@@ -104,14 +108,14 @@ class Izhikevich(models.Model):
     def V_fn(self, t):
         iV = self.V.get_tidx_for(t, self.V)
         # iVbar = self.V.get_tidx_for(t, self.Vbar)
-        V_t = self.V[iV-1]
+        V_t = self.V[iV - 1]
         # Vbar_t = self.Vbar[iVbar]
 
         iu = self.V.get_t_idx(t, self.u)
-        u_t = self.u[iu-1]
+        u_t = self.u[iu - 1]
 
         iI = self.V.get_t_idx(t, self.I)
-        I_t = self.u[iI-1]
+        I_t = self.u[iI - 1]
 
         # if (V_t >= 30.):  # TODO: fix discontinuity per node
         #     return -65.0
