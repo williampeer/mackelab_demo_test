@@ -4,5 +4,5 @@ pyyaml
 
 -e git+ssh://git@github.com/mackelab/theano_shim.git@master#egg=theano_shim
 -e git+ssh://git@github.com/mackelab/mackelab-toolbox.git@dev-alex#egg=mackelab-toolbox
--e git+ssh://git@github.com/mackelab/sinn.git@master#egg=sinn
--e git+ssh://git@github.com/mackelab/fsGIF.git@master#egg=finite-size-gif
+-e git+ssh://git@github.com:williampeer/sinn.git@dev#egg=sinn
+-e git+ssh://git@github.com:williampeer/fsGIF.git@dev#egg=finite-size-gif
