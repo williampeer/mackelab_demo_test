@@ -15,7 +15,8 @@ class Izhikevich(models.Model):
         ('a', 'floatX'),
         ('b', 'floatX'),
         ('c', 'floatX'),
-        ('d', 'floatX')
+        ('d', 'floatX'),
+        ('V_m', 'floatX')
     ))
     Parameters = sinn.define_parameters(Parameter_info)
     State = namedtuple('State', ['I', 'V'])
@@ -39,13 +40,13 @@ class Izhikevich(models.Model):
         self.V = Series(name='V', t0=self._t0, tn=self._tn, dt=self._dt, shape=(N.sum(),))
         V = self.V
         # `V` is passed as a template: defines default time stops & shape - COPY SETUP
-        self.Vbar = Series(V, name='Vbar')
+        # self.Vbar = Series(V, name='Vbar')
         self.I = Series(V, name='I')
         self.u = Series(V, name='u')
 
-        self.s_modelled = Series(V, name='s_modelled')
+        self.s_per_bin = Series(V, name='s_per_bin')
 
-        # TODO: Implement rndstream using Theano
+        # TODO: rndstream in Theano
         # if random_stream is not None:
         #     self.rndstream = random_stream
         # else:
@@ -54,21 +55,24 @@ class Izhikevich(models.Model):
         #                             shape=V.shape, std=1.)
 
         models.Model.same_dt(self.s, self.V)
-        models.Model.same_dt(self.s_modelled, self.s)
+        models.Model.same_dt(self.s_per_bin, self.s)
         # models.Model.same_dt(self.s, self.I_ext)
         # models.Model.output_rng(self.s, self.rndstream)
 
         self.add_history(self.V)
-        self.add_history(self.Vbar)
+        # self.add_history(self.Vbar)
         self.add_history(self.u)
         self.add_history(self.I)
         # self.add_history(self.η)
 
+        self.add_history(self.s_per_bin)
+
         # self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
-        self.V.set_update_function(self.V_fn, inputs=[self.Vbar, self.u, self.I])
+        self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
         # self.Vbar.set_update_function(self.Vbar_fn, inputs=self.V)
         self.u.set_update_function(self.u_fn, inputs=[self.V, self.u])
         self.I.set_update_function(self.I_fn, inputs=self.V)
+        self.s_per_bin.set_update_function(self.s_per_bin_fn, inputs=[self.u, self.I])
 
         # Pad every history corresponding to a differential equation
         # by one to make space for the initial condition
@@ -106,41 +110,53 @@ class Izhikevich(models.Model):
             self.eval()
 
     def V_fn(self, t):
-        iV = self.V.get_tidx_for(t, self.V)
-        # iVbar = self.V.get_tidx_for(t, self.Vbar)
-        V_t = self.V[iV - 1]
-        # Vbar_t = self.Vbar[iVbar]
+        ind_V = self.V.get_tidx_for(t, self.V)
+        V_prev = self.V[ind_V - 1]
 
-        iu = self.V.get_t_idx(t, self.u)
-        u_t = self.u[iu - 1]
+        ind_u = self.V.get_t_idx(t, self.u)
+        u_prev = self.u[ind_u - 1]
 
-        iI = self.V.get_t_idx(t, self.I)
-        I_t = self.u[iI - 1]
+        ind_I = self.V.get_t_idx(t, self.I)
+        I_prev = self.u[ind_I - 1]
 
-        # if (V_t >= 30.):  # TODO: fix discontinuity per node
-        #     return -65.0
+        dV_t = 0.04 * V_prev ** 2 + 5. * V_prev + 140. - u_prev + I_prev
+        V_t = V_prev + dV_t
+        if (V_t > self.params.V_m):
+            return self.params.c
+        else:
+            return V_t
 
-        # dVi = 0.04 * Vbar_t ** 2 + 5 * Vbar_t + 140 - u_t + I_t
-        dVi = 0.04 * V_t ** 2 + 5. * V_t + 140. - u_t + I_t
-        # return Vbar_t + dVi
-        return V_t + dVi
+    def s_per_bin_fn(self, t):
+        # ind_V = self.V.get_tidx_for(t, self.V); V_prev = self.V[ind_V - 1]
+        # ind_u = self.V.get_t_idx(t, self.u); u_prev = self.u[ind_u - 1]
+        # ind_I = self.V.get_t_idx(t, self.I); I_prev = self.u[ind_I - 1]
+        #
+        # dV_t = 0.04 * V_prev ** 2 + 5. * V_prev + 140. - u_prev + I_prev
+        # V_t = V_prev + dV_t
 
-    def Vbar_fn(self, t):
-        return -65.0 * np.reshape(np.zeros_like(t), (t[0], 1))
+        ind_V = self.V.get_tidx_for(t, self.V)
+        V_t = self.V[ind_V]
+        if (V_t > self.params.V_m):
+            s = 1
+        else:
+            s = 0
+        return s
+
+    # def Vbar_fn(self, t):
+    #     return -65.0 * np.reshape(np.zeros_like(t), (t[0], 1))
 
     def u_fn(self, t):
-        iV = self.V.get_tidx_for(t, self.V)
-        # iVbar = self.V.get_tidx_for(t, self.Vbar)
-        V_t = self.V[iV - 1]
-        # Vbar_t = self.Vbar[iVbar]
+        ind_V = self.V.get_tidx_for(t, self.V)
+        V_t = self.V[ind_V]
 
-        iu = self.V.get_t_idx(t, self.u)
-        u_t = self.u[iu - 1]
+        ind_u = self.V.get_t_idx(t, self.u)
+        u_prev = self.u[ind_u - 1]
 
-        # if (V_t >= 30.):
-        #     return u_t + 8.0
-        return 0.1 * (0.25 * V_t - u_t)  # this makes one bin one timestep.
-        # return 16.0 * np.reshape(np.zeros_like(t), (t[0], 1))
+        if (V_t == self.params.c):
+            return u_prev + self.params.d
+        else:
+            V_prev = self.V[ind_V - 1]
+            return self.params.a * (self.params.b * V_prev - u_prev)  # this makes one bin one timestep.
 
     def I_fn(self, t):
         # iη = self.get_tidx_for(t, self.η)

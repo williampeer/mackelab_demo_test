@@ -45,7 +45,7 @@ spiking_model.initialize()
 
 # Integrate the model forward to the time point with index X
 print("advancing..")
-spiking_model.advance(10)
+spiking_model.advance(t_n-1)
 # print("lp:", spiking_model.logp(1, 2))     # Int argument => Interpreted as time index
 print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
