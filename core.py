@@ -1143,15 +1143,14 @@ def get_model_params(params, model_type):
     elif model_type == 'GIF_mean_field':
         Γ = None
     elif model_type == 'Izhikevich':
-        Γ = GIF_spiking.make_connectivity(params.N, params.p)
+        # Γ = GIF_spiking.make_connectivity(params.N, params.p)
         model_params = Izhikevich.Parameters(
             N = params.N,
-            p = params.p,
             a = params.a,
             b = params.b,
             c = params.c,
             d = params.d,
-            V_m = params.V_m
+            spike_threshold = params.spike_threshold
         )
         return model_params
     else:
