@@ -114,7 +114,7 @@ class Izhikevich(models.Model):
 
     def init_weights(self):
         w_shape = (self.params.N.sum(),)
-        return 2.0 * (np.random.random(size=w_shape) - 0.5 * np.ones(shape=w_shape))
+        return 0.2 * (np.random.random(size=w_shape) - 0.5 * np.ones(shape=w_shape))
 
     def V_fn(self, t):
         ind_V = self.V.get_tidx_for(t, self.V)
@@ -163,6 +163,7 @@ class Izhikevich(models.Model):
 
         ind_u = self.V.get_t_idx(t, self.u)
         u_prev = self.u[ind_u - 1]
+        u_t = self.params.a * (self.params.b * V_prev - u_prev)
 
         # if (V_t == self.params.c):
         #     return u_prev + self.params.d
@@ -170,7 +171,7 @@ class Izhikevich(models.Model):
         #     V_prev = self.V[ind_V - 1]
         #     return self.params.a * (self.params.b * V_prev - u_prev)  # this makes one bin one timestep.
         return (u_prev + self.params.d) * (V_t >= self.params.V_m) + \
-               (self.params.a * (self.params.b * V_prev - u_prev)) * (V_t < self.params.V_m)
+               (u_prev + u_t) * (V_t < self.params.V_m)
 
     def I_fn(self, t):
         ind_V = self.V.get_tidx_for(t, self.V)
