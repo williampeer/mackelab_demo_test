@@ -44,7 +44,9 @@ class Izhikevich(models.Model):
         self.I = Series(V, name='I')
         self.u = Series(V, name='u')
 
-        self.s_per_bin = Series(V, name='s_per_bin')
+        self.w = self.init_weights()
+
+        self.s_count = Series(V, name='s_count')
 
         # TODO: rndstream in Theano
         # if random_stream is not None:
@@ -55,7 +57,7 @@ class Izhikevich(models.Model):
         #                             shape=V.shape, std=1.)
 
         models.Model.same_dt(self.s, self.V)
-        models.Model.same_dt(self.s_per_bin, self.s)
+        models.Model.same_dt(self.s_count, self.s)
         # models.Model.same_dt(self.s, self.I_ext)
         # models.Model.output_rng(self.s, self.rndstream)
 
@@ -65,14 +67,14 @@ class Izhikevich(models.Model):
         self.add_history(self.I)
         # self.add_history(self.η)
 
-        self.add_history(self.s_per_bin)
+        self.add_history(self.s_count)
 
         # self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
         self.V.set_update_function(self.V_fn, inputs=[self.u, self.I])
         # self.Vbar.set_update_function(self.Vbar_fn, inputs=self.V)
         self.u.set_update_function(self.u_fn, inputs=[self.V, self.u])
         self.I.set_update_function(self.I_fn, inputs=self.V)
-        self.s_per_bin.set_update_function(self.s_per_bin_fn, inputs=[self.u, self.I])
+        self.s_count.set_update_function(self.s_per_bin_fn, inputs=[self.u, self.I])
 
         # Pad every history corresponding to a differential equation
         # by one to make space for the initial condition
@@ -100,14 +102,19 @@ class Izhikevich(models.Model):
             t = 0
         tidx = self.get_tidx(t) - 1
         if not self.V.locked:
-            i = self.get_tidx_for(tidx, self.V)
-            self.V[i] = -65.
+            ind_V = self.get_tidx_for(tidx, self.V)
+            self.V[ind_V] = -65. * np.ones(shape=(self.params.N.sum(),))
         if not self.u.locked:
-            i = self.get_tidx_for(tidx, self.u)
-            self.u[i] = 8
+            ind_u = self.get_tidx_for(tidx, self.u)
+            self.u[ind_u] = 8 * np.ones(shape=(self.params.N.sum(),))
 
         if not symbolic:
             self.eval()
+
+
+    def init_weights(self):
+        w_shape = (self.params.N.sum(),)
+        return 2.0 * (np.random.random(size=w_shape) - 0.5 * np.ones(shape=w_shape))
 
     def V_fn(self, t):
         ind_V = self.V.get_tidx_for(t, self.V)
@@ -117,14 +124,16 @@ class Izhikevich(models.Model):
         u_prev = self.u[ind_u - 1]
 
         ind_I = self.V.get_t_idx(t, self.I)
-        I_prev = self.u[ind_I - 1]
+        I_prev = self.I[ind_I - 1]
 
         dV_t = 0.04 * V_prev ** 2 + 5. * V_prev + 140. - u_prev + I_prev
         V_t = V_prev + dV_t
-        if (V_t > self.params.V_m):
-            return self.params.c
-        else:
-            return V_t
+
+        # if (V_t > self.params.V_m):
+        #     return self.params.c
+        # else:
+        #     return V_t
+        return self.params.c * (V_t >= self.params.V_m) + V_t * (V_t < self.params.V_m)
 
     def s_per_bin_fn(self, t):
         # ind_V = self.V.get_tidx_for(t, self.V); V_prev = self.V[ind_V - 1]
@@ -133,14 +142,14 @@ class Izhikevich(models.Model):
         #
         # dV_t = 0.04 * V_prev ** 2 + 5. * V_prev + 140. - u_prev + I_prev
         # V_t = V_prev + dV_t
-
+        # if (V_t > self.params.V_m):
+        #     s = 1
+        # else:
+        #     s = 0
+        # return s
         ind_V = self.V.get_tidx_for(t, self.V)
         V_t = self.V[ind_V]
-        if (V_t > self.params.V_m):
-            s = 1
-        else:
-            s = 0
-        return s
+        return 1 * (V_t >= self.params.V_m)
 
     # def Vbar_fn(self, t):
     #     return -65.0 * np.reshape(np.zeros_like(t), (t[0], 1))
@@ -149,21 +158,27 @@ class Izhikevich(models.Model):
         ind_V = self.V.get_tidx_for(t, self.V)
         V_t = self.V[ind_V]
 
+        ind_V = self.V.get_tidx_for(t, self.V)
+        V_prev = self.V[ind_V - 1]
+
         ind_u = self.V.get_t_idx(t, self.u)
         u_prev = self.u[ind_u - 1]
 
-        if (V_t == self.params.c):
-            return u_prev + self.params.d
-        else:
-            V_prev = self.V[ind_V - 1]
-            return self.params.a * (self.params.b * V_prev - u_prev)  # this makes one bin one timestep.
+        # if (V_t == self.params.c):
+        #     return u_prev + self.params.d
+        # else:
+        #     V_prev = self.V[ind_V - 1]
+        #     return self.params.a * (self.params.b * V_prev - u_prev)  # this makes one bin one timestep.
+        return (u_prev + self.params.d) * (V_t >= self.params.V_m) + \
+               (self.params.a * (self.params.b * V_prev - u_prev)) * (V_t < self.params.V_m)
 
     def I_fn(self, t):
-        # iη = self.get_tidx_for(t, self.η)
-        # η_i = self.η[iη]
-        # return η_i
-        # return 0.001 * np.reshape(np.random.random(t.shape), (t[0], 1))
-        return np.zeros_like(self.I[0])
+        ind_V = self.V.get_tidx_for(t, self.V)
+        V_prev = self.V[ind_V - 1]
+
+        I_syn_t = self.w * V_prev
+        return I_syn_t
+        # return 0.001 * np.random.random(size=(self.params.N.sum(),))
 
     def logp_numpy(self, t0, tn):
         return "logp."

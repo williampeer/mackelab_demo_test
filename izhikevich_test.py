@@ -2,7 +2,8 @@ import numpy as np
 import theano_shim as shim
 from parameters import ParameterSet
 from sinn.histories import Series, PopulationSeries
-from fsGIF.core import get_model_params
+
+from core import get_model_params
 from izhikevich_model import Izhikevich
 from sys import exit
 
