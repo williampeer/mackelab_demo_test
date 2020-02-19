@@ -1150,7 +1150,8 @@ def get_model_params(params, model_type):
             b = params.b,
             c = params.c,
             d = params.d,
-            spike_threshold = params.spike_threshold
+            spike_threshold = params.spike_threshold,
+            syn_decay = params.syn_decay
         )
         return model_params
     else:

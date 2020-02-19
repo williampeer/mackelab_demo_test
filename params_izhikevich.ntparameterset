@@ -4,5 +4,6 @@
     "b": 0.2,
     "c": -65,
     "d": 8,
-    "spike_threshold": 30
+    "spike_threshold": 30,
+    "syn_decay": 6.5
 }

@@ -46,11 +46,12 @@ spiking_model.initialize()
 
 # Integrate the model forward to the time point with index X
 print("advancing..")
-spiking_model.advance(t_n-1)
-# print("lp:", spiking_model.logp(1, 2))     # Int argument => Interpreted as time index
-print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as time index
+spiking_model.advance(int(t_n/2))
+print("sum spiking_model.s_count[:int(t_n/2)]:", spiking_model.s_count[:int(t_n/2)].sum())
+# print(spiking_model.logp_numpy(10, 20))     # Int argument => Interpreted as time index
+# print("lp:", spiking_model.logp(10, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp(160., 400.))  # Float argument => Interpreted as time in seconds
-#gradient_descent(input_filename=None, output_filename="test_output.test",
+# gradient_descent(input_filename=None, output_filename="test_output.test",
                  #batch_size=100,
                  #model=spiking_model)
 
