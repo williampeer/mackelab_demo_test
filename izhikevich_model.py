@@ -26,7 +26,7 @@ class Izhikevich(models.Model):
                  initializer=None, set_weights=True, random_stream=None, memory_time=None):
 
         self.s = spike_history
-        self.I_ext = state_history  # TODO: incorporate
+        self.I_ext = state_history
 
         super().__init__(params,
                          t0=self.s.t0, tn=self.s.tn, dt=self.s.dt,
@@ -190,8 +190,11 @@ class Izhikevich(models.Model):
         ind_g = self.I.get_tidx_for(t-1, self.g)
         g_t = self.g[ind_g]
 
+        ind_I_ext = self.I.get_tidx_for(t, self.I_ext)
+        I_ext_t = self.I_ext[ind_I_ext]
+
         I_syn_t = np.dot(g_t, self.micro_ws)  # note: presynaptic propagation considered
-        return I_syn_t
+        return I_syn_t + I_ext_t
 
     # ----------------------------
     def s_count_fn(self, t):
