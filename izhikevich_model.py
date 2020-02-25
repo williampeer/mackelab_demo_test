@@ -193,8 +193,12 @@ class Izhikevich(models.Model):
         ind_I_ext = self.I.get_tidx_for(t, self.I_ext)
         I_ext_t = self.I_ext[ind_I_ext]
 
-        I_syn_t = np.dot(g_t, self.micro_ws)  # note: presynaptic propagation considered
-        return I_syn_t + I_ext_t
+        if(shim.is_theano_object(self.I)):
+            I_syn_t = T.dot(g_t, self.micro_ws)
+            return I_syn_t + I_ext_t
+        else:
+            I_syn_t = np.dot(g_t, self.micro_ws)  # note: presynaptic propagation considered
+            return I_syn_t + I_ext_t
 
     # ----------------------------
     def s_count_fn(self, t):
