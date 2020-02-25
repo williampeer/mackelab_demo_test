@@ -48,6 +48,7 @@ spiking_model = GIF(model_params,
 # Integrate the model forward to the time point with index 40
 print("advancing..")
 spiking_model.advance(21)
+print("computing spiking_model.λ[:..]", spiking_model.λ[:21])
 print("done. computing logp..")
 # print("lp:", spiking_model.logp(20, 20))     # Int argument => Interpreted as time index
 # print(spiking_model.logp_numpy(0, 20))     # Int argument => Interpreted as time index

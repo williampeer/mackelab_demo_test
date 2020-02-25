@@ -22,11 +22,13 @@ class Izhikevich(models.Model):
 
     # TODO: May make assumption about pathway and activity relative to state, and transform state to input.
 
-    def __init__(self, params, spike_history, state_history,
-                 initializer=None, set_weights=True, random_stream=None, memory_time=None):
+    def __init__(self, params, spike_history, state_history, initializer=None, set_weights=True, random_stream=None,
+                 memory_time=None, load_theano_flag=False):
 
         self.s = spike_history
         self.I_ext = state_history
+
+        self.load_theano_flag = load_theano_flag
 
         super().__init__(params,
                          t0=self.s.t0, tn=self.s.tn, dt=self.s.dt,
@@ -44,8 +46,21 @@ class Izhikevich(models.Model):
         self.g = Series(V, name='g')
         self.s_count = Series(V, name='s_count')
 
+        # self.micro_ws = self.init_micro_weights()
+        # self.meso_ws = self.init_meso_weights()
         self.micro_ws = self.init_micro_weights()
-        self.meso_ws = self.init_meso_weights()
+        self.meso_ws = shim.shared(self.init_meso_weights())
+        self.micro_ws = shim.shared(self.micro_ws)
+
+        # -------------sample-code---------------
+        # dtype = shim.config.floatX
+        # self._data = shim.shared(np.zeros(self._tarr.shape + self.shape, dtype=dtype),
+        #                          name = self.name + " data",
+        #                          borrow = True)
+        # self._original_data = self._data
+        #     # Stores a handle to the original data variable, which will appear
+        #     # as an input in the Theano graph
+        # ---------------------------------------
 
         models.Model.same_dt(self.s, self.V)
 
@@ -128,7 +143,8 @@ class Izhikevich(models.Model):
             pop_size_sum = 0
             for pop_size in self.params.N.get_value():
                 pop_size_sum += pop_size
-                cur_avgs.append(np.mean(self.micro_ws[prev_ind_sum:pop_size_sum]))
+                cur_slice = self.micro_ws[prev_ind_sum:pop_size_sum]
+                cur_avgs.append(np.mean(cur_slice))
             pop_ws[pop_ind] = np.array(cur_avgs)
         return pop_ws
 
@@ -186,19 +202,22 @@ class Izhikevich(models.Model):
         g_t = fired_prev + (1.0 - fired_prev) * g_decayed
         return g_t
 
-    def I_fn(self, t):
+    def I_fn(self, t):  # presynaptic + external
         ind_g = self.I.get_tidx_for(t-1, self.g)
         g_t = self.g[ind_g]
 
         ind_I_ext = self.I.get_tidx_for(t, self.I_ext)
         I_ext_t = self.I_ext[ind_I_ext]
 
-        if(shim.is_theano_object(self.I)):
-            I_syn_t = T.dot(g_t, self.micro_ws)
-            return I_syn_t + I_ext_t
-        else:
-            I_syn_t = np.dot(g_t, self.micro_ws)  # note: presynaptic propagation considered
-            return I_syn_t + I_ext_t
+        I_syn_t = g_t * self.micro_ws
+        return I_syn_t + I_ext_t
+
+        # if(self.load_theano_flag):
+        #     I_syn_t = T.dot(g_t, self.micro_ws)
+        #     return I_syn_t + I_ext_t
+        # else:
+        #     I_syn_t = np.dot(g_t, self.micro_ws)  # note: presynaptic propagation considered
+        #     return I_syn_t + I_ext_t
 
     # ----------------------------
     def s_count_fn(self, t):
@@ -211,11 +230,10 @@ class Izhikevich(models.Model):
     # ------------------------------------------------------------------
 
     @models.batch_function_scan('s', 's_count')
-    def logp(self):
-        spike_train_data = self.s
-        spike_train_model = self.s_count
-        p = sinn.clip_probabilities(spike_train_model * spike_train_data.dt)
-        s = spike_train_data
+    def logp(self, s, s_count):
+        # spike_train = self.s
+        # spike_train_count = self.s_count
+        p = sinn.clip_probabilities(s_count * self.s.dt)
         return (s * p - (1 - p) + s * (1 - p)).sum()
 
     def logp_numpy(self, t0, t_k):

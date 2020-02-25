@@ -1,3 +1,8 @@
+from sys import exit
+import os
+os.environ["THEANO_FLAGS"] = "optimizer=None,device=cpu,exception_verbosity=high,profile=True"
+# for gpu: floatX=float32
+
 import numpy as np
 import theano_shim as shim
 from parameters import ParameterSet
@@ -5,7 +10,6 @@ from sinn.histories import Series, PopulationSeries
 
 from core import get_model_params
 from izhikevich_model import Izhikevich
-from sys import exit
 
 # Use load_theano=False to make debugging easier
 load_theano_flag = True
@@ -13,6 +17,18 @@ load_theano_flag = True
 shim.load(load_theano=load_theano_flag)
 
 shim.config.compute_test_value = 'warn'
+if(load_theano_flag):
+    # THEANO_FLAGS = 'device=cpu;exception_verbosity=high;optimizer=fast_compute;profile=True'
+    theano = shim.gettheano()
+    # theano.config.optimizer = 'fast_run'
+    # theano.config.exception_verbosity = 'high'
+    # theano.config.profile = 'True'
+
+    # verify flags have been set
+    print('theano.config.compute_test_value:', theano.config.compute_test_value)
+    print('theano.config.optimizer:', theano.config.optimizer)
+    print('theano.config.exception_verbosity:', theano.config.exception_verbosity)
+    print()
 
 t_n = 1001
 pop_sizes=(6,6,5)
@@ -54,7 +70,7 @@ spiketrain.lock()
 state_hist.lock()
 
 model_params = get_model_params(ParameterSet("params_izhikevich.ntparameterset"), "Izhikevich")
-spiking_model = Izhikevich(model_params, spiketrain, state_hist)
+spiking_model = Izhikevich(model_params, spiketrain, state_hist, load_theano_flag=load_theano_flag)
 
 print('initialising..')
 spiking_model.initialize()
